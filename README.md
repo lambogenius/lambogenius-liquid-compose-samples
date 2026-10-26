@@ -34,8 +34,11 @@ Documentation: <https://docs.lambogenius.com/liquid-compose>
 2. **The Compose using Liquid package.** Sign in at <https://lambogenius.com/app/downloads/liquid-compose>, download
    `Lambogenius.LiquidCompose.LogicApps.0.1.0.nupkg`, and save it in [`packages/`](packages). Every sample's project
    finds it there through the repository's `nuget.config`.
-3. **A license, for production only.** Development and testing are free, including every sample here. Running the
-   action in production needs a license: see <https://lambogenius.com/products/liquid-compose>.
+3. **No license to run the samples.** Under Azure Functions Core Tools (`func start`, which `run.ps1` uses) the action
+   runs without one and logs a reminder. Anywhere else, Azure included, it needs a license token: a free
+   [developer license](https://lambogenius.com/app/licensing?start=liquid-compose-developer) for development and
+   testing, or the [30-day trial](https://lambogenius.com/app/licensing?start=liquid-compose-trial) or a paid license
+   for production.
 
 Every sample starts the same way:
 
@@ -122,7 +125,9 @@ default policy applies.
 The samples run locally. To deploy one:
 1. Run `dotnet publish -c Release`.
 2. Zip-deploy the publish folder to a Logic App (Standard) on a **Windows** plan (WS1 or larger).
-3. Set the app settings from `local.settings.sample.json`, with real endpoints.
+3. Set the app settings from `local.settings.sample.json`, with real endpoints, and set `LAMBOGENIUS_LICENSE` to a
+   license token from the [Licensing page](https://lambogenius.com/app/licensing). Without it, the action fails with
+   403 `LicenseRequired`.
 4. Move Function calls to HTTPS with `FunctionKey` or `ManagedIdentity` authentication, and remove
    `LiquidCompose__Development__AllowLocalhostHttp`.
 
