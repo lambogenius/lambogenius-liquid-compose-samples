@@ -1,0 +1,13 @@
+{
+  "region": {
+    "type": "String",
+    "value": "canadacentral"
+  },
+  "limits": {
+    "type": "Object",
+    "value": {
+      "maxLines": 500,
+      "discountPercent": 12.5
+    }
+  }
+}

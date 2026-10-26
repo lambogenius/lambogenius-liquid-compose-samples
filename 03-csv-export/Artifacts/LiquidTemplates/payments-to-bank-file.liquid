@@ -1,0 +1,68 @@
+{% csharp %}
+// The bank's fixed-width layout. Every record is 80 characters:
+//   H  header   H + file date (yyyyMMdd) + originator id (10) + spaces
+//   D  payment  D + account (12, zero-padded) + payee (30, ASCII, padded) + amount in cents (12, zero-padded) + reference (16) + spaces
+//   T  trailer  T + payment count (6) + total in cents (14) + spaces
+
+public string Record(string value)
+{
+    var text = value ?? "";
+    return text.Length >= 80 ? text.Substring(0, 80) : text.PadRight(80);
+}
+
+public string Account(string value)
+{
+    var digits = Regex.Replace(value ?? "", @"\D", "");
+    if (digits.Length == 0 || digits.Length > 12) throw new ArgumentException("An account number needs 1 to 12 digits.");
+    return digits.PadLeft(12, '0');
+}
+
+// The bank accepts ASCII only: "Initech Ltée" -> "INITECH LTEE", cut or padded to 30.
+public string Payee(string value)
+{
+    var folded = new StringBuilder();
+    foreach (var c in (value ?? "").Normalize(NormalizationForm.FormD))
+    {
+        if (CharUnicodeInfo.GetUnicodeCategory(c) == UnicodeCategory.NonSpacingMark) continue;
+        folded.Append(c < 128 && !char.IsControl(c) ? char.ToUpperInvariant(c) : ' ');
+    }
+    var text = Regex.Replace(folded.ToString(), " +", " ").Trim();
+    return text.Length >= 30 ? text.Substring(0, 30) : text.PadRight(30);
+}
+
+public double Cents(string value)
+{
+    return (double)Math.Round(decimal.Parse(value, NumberStyles.Number, CultureInfo.InvariantCulture) * 100m);
+}
+
+public string Amount12(double cents) => ((long)cents).ToString("D12", CultureInfo.InvariantCulture);
+
+public string Amount14(double cents) => ((long)cents).ToString("D14", CultureInfo.InvariantCulture);
+
+public string Count6(double count) => ((long)count).ToString("D6", CultureInfo.InvariantCulture);
+
+public string Reference(string value)
+{
+    var text = (value ?? "").Trim().ToUpperInvariant();
+    return text.Length >= 16 ? text.Substring(0, 16) : text.PadRight(16);
+}
+
+public string FileDate(string value)
+{
+    return DateTimeOffset.Parse(value, CultureInfo.InvariantCulture).ToString("yyyyMMdd", CultureInfo.InvariantCulture);
+}
+{% endcsharp %}
+{%- comment -%}
+  Records end with parameters.newline (CRLF). "-%}" trims the line break after each tag, so only the records and
+  their newlines are written.
+{%- endcomment -%}
+{%- assign nl = parameters.newline -%}
+{%- assign total = 0 -%}
+{%- capture header -%}H{{ content.runDate | CallCSharp: 'FileDate' }}{{ parameters.originatorId }}{%- endcapture -%}
+{{ header | CallCSharp: 'Record' }}{{ nl }}{% for payment in content.payments -%}
+{%- assign cents = payment.amount | CallCSharp: 'Cents' -%}
+{%- assign total = total | Plus: cents -%}
+{%- capture detail -%}D{{ payment.account | CallCSharp: 'Account' }}{{ payment.payee | CallCSharp: 'Payee' }}{{ cents | CallCSharp: 'Amount12' }}{{ payment.invoice | CallCSharp: 'Reference' }}{%- endcapture -%}
+{{ detail | CallCSharp: 'Record' }}{{ nl }}{% endfor -%}
+{%- capture trailer -%}T{{ content.payments | Size | CallCSharp: 'Count6' }}{{ total | CallCSharp: 'Amount14' }}{%- endcapture -%}
+{{ trailer | CallCSharp: 'Record' }}{{ nl }}

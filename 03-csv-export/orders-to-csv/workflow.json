@@ -1,0 +1,79 @@
+{
+  "definition": {
+    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+    "contentVersion": "1.0.0.0",
+    "triggers": {
+      "When_an_HTTP_request_is_received": {
+        "type": "Request",
+        "kind": "Http",
+        "inputs": {}
+      }
+    },
+    "actions": {
+      "Create_the_CSV": {
+        "type": "ServiceProvider",
+        "runAfter": {},
+        "inputs": {
+          "parameters": {
+            "inputFormat": "json",
+            "outputFormat": "text",
+            "content": "@triggerBody()",
+            "templateSource": "deployed",
+            "templateName": "orders-to-csv.liquid",
+            "parameters": {
+              "newline": "\r\n",
+              "defaultCurrency": "@appsetting('DEFAULT_CURRENCY')"
+            },
+            "enableScripts": true,
+            "timeoutSeconds": 30
+          },
+          "serviceProviderConfiguration": {
+            "connectionName": "lamboLiquidCompose",
+            "operationId": "ComposeLiquid",
+            "serviceProviderId": "/serviceProviders/lamboLiquidCompose"
+          },
+          "retryPolicy": {
+            "type": "none"
+          }
+        }
+      },
+      "Response": {
+        "type": "Response",
+        "kind": "Http",
+        "runAfter": {
+          "Create_the_CSV": [
+            "Succeeded"
+          ]
+        },
+        "inputs": {
+          "statusCode": 200,
+          "headers": {
+            "Content-Type": "text/csv; charset=utf-8",
+            "Content-Disposition": "attachment; filename=\"orders-@{formatDateTime(triggerBody()?['exportedAt'], 'yyyyMMdd')}.csv\""
+          },
+          "body": "@body('Create_the_CSV')?['result']"
+        }
+      },
+      "Not_created": {
+        "type": "Response",
+        "kind": "Http",
+        "runAfter": {
+          "Create_the_CSV": [
+            "Failed",
+            "TimedOut"
+          ]
+        },
+        "inputs": {
+          "statusCode": 422,
+          "body": {
+            "error": "The CSV file was not created.",
+            "code": "@first(split(last(split(string(outputs('Create_the_CSV')?['body']?['message']), 'error message ''')), ':'))",
+            "message": "@outputs('Create_the_CSV')?['body']?['message']"
+          }
+        }
+      }
+    },
+    "outputs": {}
+  },
+  "kind": "Stateful"
+}

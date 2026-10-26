@@ -1,0 +1,2 @@
+{%- comment -%} GetCustomerName is in the Function registry, but the action's allowedFunctionAliases is empty. {%- endcomment -%}
+{ "customer": {{ content.customerId | CallFunction: 'GetCustomerName' | ToJson }} }

@@ -1,0 +1,80 @@
+{
+  "definition": {
+    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+    "contentVersion": "1.0.0.0",
+    "triggers": {
+      "When_an_HTTP_request_is_received": {
+        "type": "Request",
+        "kind": "Http",
+        "inputs": {}
+      }
+    },
+    "actions": {
+      "Create_the_bank_file": {
+        "type": "ServiceProvider",
+        "runAfter": {},
+        "inputs": {
+          "parameters": {
+            "inputFormat": "json",
+            "outputFormat": "text",
+            "content": "@triggerBody()",
+            "templateSource": "deployed",
+            "templateName": "payments-to-bank-file.liquid",
+            "parameters": {
+              "newline": "\r\n",
+              "originatorId": "@appsetting('BANK_ORIGINATOR_ID')"
+            },
+            "enableScripts": true,
+            "timeoutSeconds": 30
+          },
+          "serviceProviderConfiguration": {
+            "connectionName": "lamboLiquidCompose",
+            "operationId": "ComposeLiquid",
+            "serviceProviderId": "/serviceProviders/lamboLiquidCompose"
+          },
+          "retryPolicy": {
+            "type": "none"
+          }
+        }
+      },
+      "Response": {
+        "type": "Response",
+        "kind": "Http",
+        "runAfter": {
+          "Create_the_bank_file": [
+            "Succeeded"
+          ]
+        },
+        "inputs": {
+          "statusCode": 200,
+          "headers": {
+            "Content-Type": "text/plain; charset=us-ascii",
+            "Content-Disposition": "attachment; filename=\"PAY@{formatDateTime(triggerBody()?['runDate'], 'yyyyMMdd')}.txt\"",
+            "x-record-count": "@{add(length(triggerBody()?['payments']), 2)}"
+          },
+          "body": "@body('Create_the_bank_file')?['result']"
+        }
+      },
+      "Not_created": {
+        "type": "Response",
+        "kind": "Http",
+        "runAfter": {
+          "Create_the_bank_file": [
+            "Failed",
+            "TimedOut"
+          ]
+        },
+        "inputs": {
+          "statusCode": 422,
+          "body": {
+            "error": "The bank file was not created. Nothing was sent to the bank.",
+            "code": "@first(split(last(split(string(outputs('Create_the_bank_file')?['body']?['message']), 'error message ''')), ':'))",
+            "message": "@outputs('Create_the_bank_file')?['body']?['message']"
+          }
+        }
+      }
+    },
+    "outputs": {}
+  },
+  "kind": "Stateful"
+}

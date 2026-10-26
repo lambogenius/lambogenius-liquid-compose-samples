@@ -1,0 +1,27 @@
+{% csharp %}
+// One CSV field (RFC 4180): quoted when it holds a comma, a quote or a line break, with quotes doubled.
+public string Csv(string value)
+{
+    var text = value ?? "";
+    return text.IndexOfAny(new[] { ',', '"', '\r', '\n' }) < 0 ? text : "\"" + text.Replace("\"", "\"\"") + "\"";
+}
+
+// Money as finance's spreadsheet reads it: always two decimals, a dot, no thousands separator.
+public string Money(string value)
+{
+    return decimal.Parse(value, NumberStyles.Number, CultureInfo.InvariantCulture).ToString("0.00", CultureInfo.InvariantCulture);
+}
+
+// The order's local calendar date, not converted to UTC.
+public string Day(string value)
+{
+    return DateTimeOffset.Parse(value, CultureInfo.InvariantCulture).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+}
+{% endcsharp %}
+{%- comment -%}
+  Every line ends with parameters.newline (CRLF, set in the workflow). The template's own line breaks are removed by
+  the dash in "-%}", which trims the whitespace after a tag, so the file holds exactly the lines below.
+{%- endcomment -%}
+{%- assign nl = parameters.newline -%}
+order_number,placed_on,customer,email,status,total,currency,note{{ nl }}{% for order in content.orders -%}
+{{ order.number | CallCSharp: 'Csv' }},{{ order.placedAt | CallCSharp: 'Day' }},{{ order.customer.name | CallCSharp: 'Csv' }},{{ order.customer.email | Default: '' | Downcase | CallCSharp: 'Csv' }},{{ order.status | Upcase }},{{ order.total | CallCSharp: 'Money' }},{{ order.currency | Default: parameters.defaultCurrency }},{{ order.note | Default: '' | CallCSharp: 'Csv' }}{{ nl }}{% endfor -%}

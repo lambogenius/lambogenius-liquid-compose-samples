@@ -1,0 +1,14 @@
+{
+  "customerId": "C100",
+  "name": "Acme Supplies",
+  "email": "orders@acme.example",
+  "address": {
+    "lines": [
+      "100 King St W"
+    ],
+    "city": "Toronto",
+    "region": "ON",
+    "postalCode": "M5X 1A9"
+  },
+  "creditLimit": 5000.5
+}

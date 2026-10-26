@@ -1,0 +1,162 @@
+{
+  "definition": {
+    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+    "contentVersion": "1.0.0.0",
+    "triggers": {
+      "When_an_HTTP_request_is_received": {
+        "type": "Request",
+        "kind": "Http",
+        "inputs": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "salesOrder": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "salesOrder"
+            ]
+          }
+        }
+      }
+    },
+    "actions": {
+      "Create_sales_order": {
+        "type": "Http",
+        "runAfter": {},
+        "inputs": {
+          "method": "POST",
+          "uri": "@{appsetting('ERP_BASE_URL')}/salesorders",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": "@triggerBody()?['salesOrder']",
+          "retryPolicy": {
+            "type": "fixed",
+            "count": 2,
+            "interval": "PT5S"
+          }
+        }
+      },
+      "Notify_warehouse": {
+        "type": "Scope",
+        "runAfter": {
+          "Create_sales_order": [
+            "Succeeded"
+          ]
+        },
+        "actions": {
+          "Compose_pick_list": {
+            "type": "ServiceProvider",
+            "runAfter": {},
+            "inputs": {
+              "parameters": {
+                "inputFormat": "json",
+                "outputFormat": "text",
+                "content": {
+                  "erpOrderId": "@body('Create_sales_order')?['id']",
+                  "salesOrder": "@triggerBody()?['salesOrder']"
+                },
+                "templateSource": "deployed",
+                "templateName": "erp-pick-list.liquid",
+                "enableScripts": true,
+                "timeoutSeconds": 30
+              },
+              "serviceProviderConfiguration": {
+                "connectionName": "lamboLiquidCompose",
+                "operationId": "ComposeLiquid",
+                "serviceProviderId": "/serviceProviders/lamboLiquidCompose"
+              },
+              "retryPolicy": {
+                "type": "none"
+              }
+            }
+          },
+          "Send_pick_list": {
+            "type": "Http",
+            "runAfter": {
+              "Compose_pick_list": [
+                "Succeeded"
+              ]
+            },
+            "inputs": {
+              "method": "POST",
+              "uri": "@{appsetting('WAREHOUSE_BASE_URL')}/picklists",
+              "headers": {
+                "Content-Type": "text/plain; charset=utf-8",
+                "X-Sales-Order-Id": "@{body('Create_sales_order')?['id']}"
+              },
+              "body": "@body('Compose_pick_list')?['result']",
+              "retryPolicy": {
+                "type": "fixed",
+                "count": 2,
+                "interval": "PT5S"
+              }
+            }
+          }
+        }
+      },
+      "Response": {
+        "type": "Response",
+        "kind": "Http",
+        "runAfter": {
+          "Notify_warehouse": [
+            "Succeeded"
+          ]
+        },
+        "inputs": {
+          "statusCode": "@outputs('Create_sales_order')?['statusCode']",
+          "body": {
+            "erpOrderId": "@body('Create_sales_order')?['id']",
+            "externalOrderId": "@body('Create_sales_order')?['externalOrderId']",
+            "duplicate": "@body('Create_sales_order')?['duplicate']",
+            "salesOrder": "@triggerBody()?['salesOrder']",
+            "pickList": "@body('Compose_pick_list')?['result']"
+          }
+        }
+      },
+      "ERP_failed": {
+        "type": "Response",
+        "kind": "Http",
+        "runAfter": {
+          "Create_sales_order": [
+            "Failed",
+            "TimedOut"
+          ]
+        },
+        "inputs": {
+          "statusCode": "@if(equals(outputs('Create_sales_order')?['statusCode'], 422), 422, 503)",
+          "body": {
+            "failure": "@if(equals(outputs('Create_sales_order')?['statusCode'], 422), 'erp-rejected', 'erp-unavailable')",
+            "error": "@if(equals(outputs('Create_sales_order')?['statusCode'], 422), 'The ERP rejected the sales order.', 'The ERP is unavailable. Nothing was created; send the order again later.')",
+            "erpStatus": "@outputs('Create_sales_order')?['statusCode']",
+            "erp": "@body('Create_sales_order')"
+          }
+        }
+      },
+      "Warehouse_failed": {
+        "type": "Response",
+        "kind": "Http",
+        "runAfter": {
+          "Notify_warehouse": [
+            "Failed",
+            "TimedOut"
+          ]
+        },
+        "inputs": {
+          "statusCode": 502,
+          "body": {
+            "failure": "warehouse",
+            "error": "The sales order was created, but the pick list did not reach the warehouse.",
+            "erpOrderId": "@body('Create_sales_order')?['id']",
+            "pickList": "@outputs('Compose_pick_list')?['body']",
+            "warehouse": "@body('Send_pick_list')"
+          }
+        }
+      }
+    },
+    "outputs": {}
+  },
+  "kind": "Stateful"
+}

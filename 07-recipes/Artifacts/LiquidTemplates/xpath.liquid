@@ -1,0 +1,21 @@
+{%- comment -%}
+  XmlValue returns the first value an XPath selects (null when nothing matches); XmlValues returns all of them as an
+  array. Every namespace needs a prefix from the action's xmlNamespaces input, including the document's default
+  namespace: here s = urn:example:shipment, a = urn:example:address. XPath selects nodes: elements, attributes and
+  text; functions that return numbers or strings, such as count(), are not accepted.
+{%- endcomment -%}
+{
+  "id": {{ content | XmlValue: '/s:Shipment/@id' | ToJson }},
+  "firstPackage": {{ content | XmlValue: '/s:Shipment/s:Package/s:Weight' | ToJson }},
+  "secondPackage": {{ content | XmlValue: '/s:Shipment/s:Package[2]/s:Weight' | ToJson }},
+  "allWeights": {{ content | XmlValues: '/s:Shipment/s:Package/s:Weight' | ToJson }},
+  "weightUnits": {{ content | XmlValues: '/s:Shipment/s:Package/s:Weight/@unit' | ToJson }},
+  "fragileLabels": {{ content | XmlValues: "/s:Shipment/s:Package[@fragile='true']/s:Label" | ToJson }},
+  "billingCity": {{ content | XmlValue: "/s:Shipment/a:Address[@type='billing']/a:City" | ToJson }},
+  "shippingCity": {{ content | XmlValue: "/s:Shipment/a:Address[@type='shipping']/a:City" | ToJson }},
+  "packageOfLabelB": {{ content | XmlValue: "/s:Shipment/s:Package[s:Label='B']/@seq" | ToJson }},
+  "instructions": {{ content | XmlValue: '/s:Shipment/s:Instructions' | Strip | ToJson }},
+  "missing": {{ content | XmlValue: '/s:Shipment/s:DoesNotExist' | ToJson }},
+  "noMatches": {{ content | XmlValues: '/s:Shipment/s:DoesNotExist' | ToJson }},
+  "packageCount": {{ content | XmlValues: '/s:Shipment/s:Package' | Size }}
+}

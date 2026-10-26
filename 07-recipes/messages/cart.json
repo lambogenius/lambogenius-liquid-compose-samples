@@ -1,0 +1,12 @@
+{
+  "customer": { "firstName": "alex", "country": "CA" },
+  "cart": {
+    "items": [
+      { "sku": "ABC-01", "name": "Widget", "price": 19.99, "quantity": 2 },
+      { "sku": "XYZ-02", "name": "Gizmo", "price": 35.5, "quantity": 1 },
+      { "sku": "KIT-03", "name": "Starter kit", "price": 12.25, "quantity": 4 }
+    ],
+    "tags": "spring;clearance;online",
+    "note": "This is a gift for my sister!"
+  }
+}

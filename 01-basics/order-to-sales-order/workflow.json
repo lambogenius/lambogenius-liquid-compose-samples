@@ -1,0 +1,90 @@
+{
+  "definition": {
+    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+    "contentVersion": "1.0.0.0",
+    "triggers": {
+      "When_an_HTTP_request_is_received": {
+        "type": "Request",
+        "kind": "Http",
+        "inputs": {}
+      }
+    },
+    "actions": {
+      "Compose_using_Liquid": {
+        "type": "ServiceProvider",
+        "runAfter": {},
+        "inputs": {
+          "parameters": {
+            "inputFormat": "json",
+            "outputFormat": "json",
+            "content": "@triggerBody()",
+            "templateSource": "deployed",
+            "templateName": "order-to-sales-order.liquid",
+            "parameters": {
+              "currency": "CAD"
+            },
+            "enableScripts": true,
+            "allowedFunctionAliases": [
+              "GetCustomerName"
+            ],
+            "timeoutSeconds": 30
+          },
+          "serviceProviderConfiguration": {
+            "connectionName": "lamboLiquidCompose",
+            "operationId": "ComposeLiquid",
+            "serviceProviderId": "/serviceProviders/lamboLiquidCompose"
+          },
+          "retryPolicy": {
+            "type": "none"
+          }
+        }
+      },
+      "Order_number": {
+        "type": "Compose",
+        "runAfter": {
+          "Compose_using_Liquid": [
+            "Succeeded"
+          ]
+        },
+        "inputs": "@body('Compose_using_Liquid')?['result']?['orderNumber']"
+      },
+      "Response": {
+        "type": "Response",
+        "kind": "Http",
+        "runAfter": {
+          "Order_number": [
+            "Succeeded"
+          ]
+        },
+        "inputs": {
+          "statusCode": 200,
+          "body": {
+            "salesOrder": "@body('Compose_using_Liquid')?['result']",
+            "orderNumber": "@outputs('Order_number')",
+            "firstSku": "@body('Compose_using_Liquid')?['result']?['lines']?[0]?['sku']",
+            "templateHash": "@body('Compose_using_Liquid')?['templateHash']",
+            "functionCallCount": "@body('Compose_using_Liquid')?['diagnostics']?['functionCallCount']"
+          }
+        }
+      },
+      "Failure_response": {
+        "type": "Response",
+        "kind": "Http",
+        "runAfter": {
+          "Compose_using_Liquid": [
+            "Failed",
+            "TimedOut"
+          ]
+        },
+        "inputs": {
+          "statusCode": 500,
+          "body": {
+            "error": "@outputs('Compose_using_Liquid')?['body']"
+          }
+        }
+      }
+    },
+    "outputs": {}
+  },
+  "kind": "Stateful"
+}

@@ -1,0 +1,5 @@
+{%- assign codes = content | XmlValues: '/o:Order/o:Lines/o:Line/o:Sku' -%}
+Order {{ content | XmlValue: '/o:Order/o:Number' }}
+{% for code in codes -%}
+- {{ code }}
+{% endfor -%}

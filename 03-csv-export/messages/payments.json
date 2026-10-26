@@ -1,0 +1,8 @@
+{
+  "runDate": "2026-10-23T17:00:00-04:00",
+  "payments": [
+    { "account": "0012-3456-78", "payee": "Acme Supplies", "amount": "1250.00", "invoice": "inv-2026-0411" },
+    { "account": "998877", "payee": "Initech \"Québec\" Ltée", "amount": "89.95", "invoice": "inv-2026-0412" },
+    { "account": "5550001", "payee": "Globex Corporation of North America and Overseas Holdings", "amount": "0.05", "invoice": "credit-memo-2026-000077" }
+  ]
+}

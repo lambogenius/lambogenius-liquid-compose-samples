@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PurchaseOrder xmlns="urn:example:partner:purchase-order:2">
+  <PONumber>po-7731</PONumber>
+  <OrderDate>2026-10-20</OrderDate>
+  <Buyer>
+    <Account>C200</Account>
+    <Contact>receiving@globex.example</Contact>
+  </Buyer>
+  <ShipTo>
+    <Name>Globex Receiving Dock 3</Name>
+    <Street>1 Globex Way</Street>
+    <City>Ottawa</City>
+    <Region>ON</Region>
+    <PostalCode>k1p 1j1</PostalCode>
+    <Country>CA</Country>
+  </ShipTo>
+  <Items>
+    <Item>
+      <PartNumber>abc-01</PartNumber>
+      <Description>Widget, blue</Description>
+      <Qty>24</Qty>
+      <UnitPrice>9.50</UnitPrice>
+    </Item>
+    <Item>
+      <PartNumber>LMN-77</PartNumber>
+      <Description>Mounting kit &amp; screws</Description>
+      <Qty>6</Qty>
+      <UnitPrice>4.25</UnitPrice>
+    </Item>
+    <Item>
+      <PartNumber>xyz-02</PartNumber>
+      <Description>Gadget "Pro"</Description>
+      <Qty>2</Qty>
+      <UnitPrice>119.00</UnitPrice>
+    </Item>
+  </Items>
+</PurchaseOrder>

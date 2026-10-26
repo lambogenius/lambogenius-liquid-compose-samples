@@ -1,0 +1,27 @@
+{% csharp %}
+// Fixed-width columns for the warehouse label printer.
+public string Column(string value)
+{
+    var text = value ?? "";
+    return text.Length >= 12 ? text.Substring(0, 12) : text.PadRight(12);
+}
+
+public string Quantity(double value)
+{
+    return ("x" + value.ToString("0.##", CultureInfo.InvariantCulture)).PadLeft(5);
+}
+{% endcsharp %}
+{%- assign order = content.salesOrder -%}
+{%- assign ship = order.shipTo -%}
+{%- assign units = 0 -%}
+PICK LIST {{ content.erpOrderId }}
+Order:   {{ order.externalOrderId }} ({{ order.channel }}, {{ order.orderDate }})
+Ship to: {{ ship.name }}
+         {{ ship.street }}
+         {{ ship.city }} {{ ship.region }} {{ ship.postalCode }} {{ ship.country }}
+------------------------------------------------
+{% for line in order.lines -%}
+{{ line.lineNo | Prepend: '   ' | Slice: -4, 4 }}  {{ line.item | CallCSharp: 'Column' }}{{ line.quantity | CallCSharp: 'Quantity' }}  {{ line.description }}{% assign units = units | Plus: line.quantity %}
+{% endfor -%}
+------------------------------------------------
+Lines: {{ order.lines | Size }}   Units: {{ units }}

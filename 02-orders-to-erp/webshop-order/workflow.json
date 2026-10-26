@@ -1,0 +1,122 @@
+{
+  "definition": {
+    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+    "contentVersion": "1.0.0.0",
+    "triggers": {
+      "When_an_HTTP_request_is_received": {
+        "type": "Request",
+        "kind": "Http",
+        "inputs": {}
+      }
+    },
+    "actions": {
+      "Map_to_sales_order": {
+        "type": "ServiceProvider",
+        "runAfter": {},
+        "inputs": {
+          "parameters": {
+            "inputFormat": "json",
+            "outputFormat": "json",
+            "content": "@triggerBody()",
+            "templateSource": "deployed",
+            "templateName": "webshop-to-erp.liquid",
+            "parameters": {
+              "defaultCurrency": "@appsetting('DEFAULT_CURRENCY')"
+            },
+            "enableScripts": true,
+            "allowedFunctionAliases": [
+              "GetCustomerName"
+            ],
+            "timeoutSeconds": 30
+          },
+          "serviceProviderConfiguration": {
+            "connectionName": "lamboLiquidCompose",
+            "operationId": "ComposeLiquid",
+            "serviceProviderId": "/serviceProviders/lamboLiquidCompose"
+          },
+          "retryPolicy": {
+            "type": "none"
+          }
+        }
+      },
+      "Submit_sales_order": {
+        "type": "Workflow",
+        "runAfter": {
+          "Map_to_sales_order": [
+            "Succeeded"
+          ]
+        },
+        "inputs": {
+          "host": {
+            "workflow": {
+              "id": "submit-sales-order"
+            },
+            "triggerName": "When_an_HTTP_request_is_received"
+          },
+          "body": {
+            "salesOrder": "@body('Map_to_sales_order')?['result']"
+          },
+          "retryPolicy": {
+            "type": "none"
+          }
+        }
+      },
+      "Response": {
+        "type": "Response",
+        "kind": "Http",
+        "runAfter": {
+          "Submit_sales_order": [
+            "Succeeded"
+          ]
+        },
+        "inputs": {
+          "statusCode": "@outputs('Submit_sales_order')?['statusCode']",
+          "body": {
+            "status": "@if(body('Submit_sales_order')?['duplicate'], 'already received', 'accepted')",
+            "erpOrderId": "@body('Submit_sales_order')?['erpOrderId']",
+            "externalOrderId": "@body('Submit_sales_order')?['externalOrderId']",
+            "customerName": "@body('Map_to_sales_order')?['result']?['customer']?['name']",
+            "mapping": {
+              "templateHash": "@body('Map_to_sales_order')?['templateHash']",
+              "durationMs": "@body('Map_to_sales_order')?['diagnostics']?['durationMs']",
+              "functionCallCount": "@body('Map_to_sales_order')?['diagnostics']?['functionCallCount']"
+            }
+          }
+        }
+      },
+      "Mapping_failed": {
+        "type": "Response",
+        "kind": "Http",
+        "runAfter": {
+          "Map_to_sales_order": [
+            "Failed",
+            "TimedOut"
+          ]
+        },
+        "inputs": {
+          "statusCode": 422,
+          "body": {
+            "error": "The order could not be mapped to a sales order. Nothing was sent to the ERP.",
+            "detail": "@outputs('Map_to_sales_order')?['body']"
+          }
+        }
+      },
+      "Submit_failed": {
+        "type": "Response",
+        "kind": "Http",
+        "runAfter": {
+          "Submit_sales_order": [
+            "Failed",
+            "TimedOut"
+          ]
+        },
+        "inputs": {
+          "statusCode": "@coalesce(outputs('Submit_sales_order')?['statusCode'], 502)",
+          "body": "@body('Submit_sales_order')"
+        }
+      }
+    },
+    "outputs": {}
+  },
+  "kind": "Stateful"
+}

@@ -1,0 +1,19 @@
+{% csharp %}
+public string NormalizeCode(string value)
+{
+    return (value ?? "").Trim().ToUpperInvariant();
+}
+{% endcsharp %}
+{
+  "orderNumber": {{ content.order.number | CallCSharp: 'NormalizeCode' | ToJson }},
+  "customerName": {{ content.order.customerId | CallFunction: 'GetCustomerName' | ToJson }},
+  "currency": {{ parameters.currency | ToJson }},
+  "lines": [
+    {% for line in content.order.lines %}
+    {
+      "sku": {{ line.sku | CallCSharp: 'NormalizeCode' | ToJson }},
+      "quantity": {{ line.quantity | ToJson }}
+    }{% unless forloop.last %},{% endunless %}
+    {% endfor %}
+  ]
+}

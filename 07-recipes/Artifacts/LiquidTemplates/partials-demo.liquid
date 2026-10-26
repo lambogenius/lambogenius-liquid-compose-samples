@@ -1,0 +1,11 @@
+{%- comment -%}
+  include renders another template from the template folder (partials can include partials, up to 8 deep). The
+  partial sees this template's variables, so set the one it reads (here: party) before including it.
+{%- endcomment -%}
+{%- assign billTo = content.billTo -%}
+{%- assign shipTo = content.shipTo -%}
+{
+  "orderId": {{ content.orderId | ToJson }},
+  "billTo": {% assign party = billTo %}{% include 'partials/party.liquid' %},
+  "shipTo": {% assign party = shipTo %}{% include 'partials/party.liquid' %}
+}

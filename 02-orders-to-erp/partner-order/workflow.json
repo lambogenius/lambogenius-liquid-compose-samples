@@ -1,0 +1,162 @@
+{
+  "definition": {
+    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+    "contentVersion": "1.0.0.0",
+    "triggers": {
+      "When_an_HTTP_request_is_received": {
+        "type": "Request",
+        "kind": "Http",
+        "inputs": {}
+      }
+    },
+    "actions": {
+      "Map_to_sales_order": {
+        "type": "ServiceProvider",
+        "runAfter": {},
+        "inputs": {
+          "parameters": {
+            "inputFormat": "xml",
+            "outputFormat": "json",
+            "content": "@{triggerBody()}",
+            "templateSource": "deployed",
+            "templateName": "partner-po-to-erp.liquid",
+            "xmlNamespaces": {
+              "po": "urn:example:partner:purchase-order:2"
+            },
+            "parameters": {
+              "defaultCurrency": "@appsetting('DEFAULT_CURRENCY')"
+            },
+            "enableScripts": true,
+            "allowedFunctionAliases": [
+              "GetCustomerName"
+            ],
+            "timeoutSeconds": 30
+          },
+          "serviceProviderConfiguration": {
+            "connectionName": "lamboLiquidCompose",
+            "operationId": "ComposeLiquid",
+            "serviceProviderId": "/serviceProviders/lamboLiquidCompose"
+          },
+          "retryPolicy": {
+            "type": "none"
+          }
+        }
+      },
+      "Submit_sales_order": {
+        "type": "Workflow",
+        "runAfter": {
+          "Map_to_sales_order": [
+            "Succeeded"
+          ]
+        },
+        "inputs": {
+          "host": {
+            "workflow": {
+              "id": "submit-sales-order"
+            },
+            "triggerName": "When_an_HTTP_request_is_received"
+          },
+          "body": {
+            "salesOrder": "@body('Map_to_sales_order')?['result']"
+          },
+          "retryPolicy": {
+            "type": "none"
+          }
+        }
+      },
+      "Compose_acknowledgement": {
+        "type": "ServiceProvider",
+        "runAfter": {
+          "Submit_sales_order": [
+            "Succeeded"
+          ]
+        },
+        "inputs": {
+          "parameters": {
+            "inputFormat": "json",
+            "outputFormat": "text",
+            "content": "@body('Submit_sales_order')",
+            "templateSource": "deployed",
+            "templateName": "erp-to-partner-ack.liquid",
+            "timeoutSeconds": 30
+          },
+          "serviceProviderConfiguration": {
+            "connectionName": "lamboLiquidCompose",
+            "operationId": "ComposeLiquid",
+            "serviceProviderId": "/serviceProviders/lamboLiquidCompose"
+          },
+          "retryPolicy": {
+            "type": "none"
+          }
+        }
+      },
+      "Response": {
+        "type": "Response",
+        "kind": "Http",
+        "runAfter": {
+          "Compose_acknowledgement": [
+            "Succeeded"
+          ]
+        },
+        "inputs": {
+          "statusCode": "@outputs('Submit_sales_order')?['statusCode']",
+          "headers": {
+            "Content-Type": "application/xml; charset=utf-8"
+          },
+          "body": "@body('Compose_acknowledgement')?['result']"
+        }
+      },
+      "Mapping_failed": {
+        "type": "Response",
+        "kind": "Http",
+        "runAfter": {
+          "Map_to_sales_order": [
+            "Failed",
+            "TimedOut"
+          ]
+        },
+        "inputs": {
+          "statusCode": 422,
+          "body": {
+            "error": "The purchase order could not be mapped to a sales order. Nothing was sent to the ERP.",
+            "detail": "@outputs('Map_to_sales_order')?['body']"
+          }
+        }
+      },
+      "Submit_failed": {
+        "type": "Response",
+        "kind": "Http",
+        "runAfter": {
+          "Submit_sales_order": [
+            "Failed",
+            "TimedOut"
+          ]
+        },
+        "inputs": {
+          "statusCode": "@coalesce(outputs('Submit_sales_order')?['statusCode'], 502)",
+          "body": "@body('Submit_sales_order')"
+        }
+      },
+      "Acknowledgement_failed": {
+        "type": "Response",
+        "kind": "Http",
+        "runAfter": {
+          "Compose_acknowledgement": [
+            "Failed",
+            "TimedOut"
+          ]
+        },
+        "inputs": {
+          "statusCode": 500,
+          "body": {
+            "error": "The sales order was created, but the acknowledgement could not be rendered.",
+            "erpOrderId": "@body('Submit_sales_order')?['erpOrderId']",
+            "detail": "@outputs('Compose_acknowledgement')?['body']"
+          }
+        }
+      }
+    },
+    "outputs": {}
+  },
+  "kind": "Stateful"
+}

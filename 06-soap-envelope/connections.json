@@ -1,0 +1,13 @@
+{
+  "serviceProviderConnections": {
+    "lamboLiquidCompose": {
+      "displayName": "Liquid Compose (Lambogenius)",
+      "serviceProvider": {
+        "id": "/serviceProviders/lamboLiquidCompose"
+      },
+      "parameterValues": {
+        "templateFolder": ""
+      }
+    }
+  }
+}

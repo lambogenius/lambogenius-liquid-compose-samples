@@ -1,0 +1,13 @@
+{%- assign order = content.salesOrder -%}
+<?xml version="1.0" encoding="utf-8"?>
+<PurchaseOrderAck xmlns="urn:example:partner:purchase-order-ack:2">
+  <PONumber>{{ order.externalOrderId | Remove: 'EDI-' | Escape }}</PONumber>
+  <Status>{% if content.duplicate %}AlreadyReceived{% else %}Accepted{% endif %}</Status>
+  <SupplierOrderId>{{ content.erpOrderId | Escape }}</SupplierOrderId>
+  <ShipTo>{{ order.shipTo.name | Escape }}, {{ order.shipTo.city | Escape }} {{ order.shipTo.region | Escape }}</ShipTo>
+  <Lines>
+{% for line in order.lines -%}
+    <Line number="{{ line.lineNo }}"><PartNumber>{{ line.item | Escape }}</PartNumber><Qty>{{ line.quantity }}</Qty><Status>Accepted</Status></Line>
+{% endfor -%}
+  </Lines>
+</PurchaseOrderAck>

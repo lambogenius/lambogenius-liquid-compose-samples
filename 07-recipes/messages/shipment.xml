@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Shipment xmlns="urn:example:shipment" xmlns:a="urn:example:address" id="SHP-778">
+  <a:Address type="billing"><a:City>Toronto</a:City></a:Address>
+  <a:Address type="shipping"><a:City>Ottawa</a:City></a:Address>
+  <Package seq="1" fragile="true"><Label>A</Label><Weight unit="kg">2.5</Weight></Package>
+  <Package seq="2"><Label>B</Label><Weight unit="kg">11</Weight></Package>
+  <Package seq="3" fragile="true"><Label>C</Label><Weight unit="lb">4</Weight></Package>
+  <Instructions><![CDATA[
+    Ring twice & leave <inside> the porch.
+  ]]></Instructions>
+</Shipment>

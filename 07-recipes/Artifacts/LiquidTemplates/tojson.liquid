@@ -1,0 +1,23 @@
+{%- comment -%}
+  ToJson writes any value as one JSON token: strings quoted and escaped, numbers and Booleans as they are, null as
+  null, arrays and objects as JSON. "{{ value }}" between quotes breaks on the first quote, backslash or line break
+  in the value; {{ value | ToJson }} never does.
+{%- endcomment -%}
+{
+  "quotes": {{ content.quotes | ToJson }},
+  "backslash": {{ content.backslash | ToJson }},
+  "lineBreaks": {{ content.lineBreaks | ToJson }},
+  "unicode": {{ content.unicode | ToJson }},
+  "html": {{ content.html | ToJson }},
+  "integer": {{ content.integer | ToJson }},
+  "decimal": {{ content.decimal | ToJson }},
+  "large": {{ content.large | ToJson }},
+  "yes": {{ content.yes | ToJson }},
+  "no": {{ content.no | ToJson }},
+  "nothing": {{ content.nothing | ToJson }},
+  "missing": {{ content.notInTheInput | ToJson }},
+  "emptyString": {{ content.emptyString | ToJson }},
+  "list": {{ content.list | ToJson }},
+  "object": {{ content.object | ToJson }},
+  "numberAsText": {{ content.integer | Append: '' | ToJson }}
+}

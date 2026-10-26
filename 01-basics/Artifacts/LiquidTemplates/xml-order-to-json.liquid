@@ -1,0 +1,7 @@
+{%- assign skus = content | XmlValues: '/o:Order/o:Lines/o:Line/o:Sku' -%}
+{
+  "orderNumber": {{ content | XmlValue: '/o:Order/o:Number' | Upcase | ToJson }},
+  "missing": {{ content | XmlValue: '/o:Order/o:Missing' | ToJson }},
+  "skus": {{ skus | ToJson }},
+  "lineCount": {{ skus | Size }}
+}

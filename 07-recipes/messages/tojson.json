@@ -1,0 +1,29 @@
+{
+  "quotes": "She said \"hi\" and 'bye'",
+  "backslash": "C:\\temp\\new",
+  "lineBreaks": "line 1\nline 2\r\n\ttabbed",
+  "unicode": "Québec ✓ 日本 😀",
+  "html": "<b>bold</b> & </script>",
+  "integer": 42,
+  "decimal": 19.99,
+  "large": 12345678901234567890,
+  "yes": true,
+  "no": false,
+  "nothing": null,
+  "emptyString": "",
+  "list": [
+    1,
+    "two",
+    null,
+    {
+      "three": 3
+    }
+  ],
+  "object": {
+    "nested": {
+      "deep": [
+        true
+      ]
+    }
+  }
+}

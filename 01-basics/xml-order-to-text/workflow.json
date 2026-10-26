@@ -1,0 +1,70 @@
+{
+  "definition": {
+    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+    "contentVersion": "1.0.0.0",
+    "triggers": {
+      "When_an_HTTP_request_is_received": {
+        "type": "Request",
+        "kind": "Http",
+        "inputs": {}
+      }
+    },
+    "actions": {
+      "Compose_using_Liquid": {
+        "type": "ServiceProvider",
+        "runAfter": {},
+        "inputs": {
+          "parameters": {
+            "inputFormat": "xml",
+            "outputFormat": "text",
+            "content": "@{triggerBody()}",
+            "templateSource": "deployed",
+            "templateName": "xml-order-to-text.liquid",
+            "xmlNamespaces": {
+              "o": "urn:orders"
+            }
+          },
+          "serviceProviderConfiguration": {
+            "connectionName": "lamboLiquidCompose",
+            "operationId": "ComposeLiquid",
+            "serviceProviderId": "/serviceProviders/lamboLiquidCompose"
+          },
+          "retryPolicy": {
+            "type": "none"
+          }
+        }
+      },
+      "Response": {
+        "type": "Response",
+        "kind": "Http",
+        "runAfter": {
+          "Compose_using_Liquid": [
+            "Succeeded"
+          ]
+        },
+        "inputs": {
+          "statusCode": 200,
+          "body": "@body('Compose_using_Liquid')?['result']"
+        }
+      },
+      "Failure_response": {
+        "type": "Response",
+        "kind": "Http",
+        "runAfter": {
+          "Compose_using_Liquid": [
+            "Failed",
+            "TimedOut"
+          ]
+        },
+        "inputs": {
+          "statusCode": 500,
+          "body": {
+            "error": "@outputs('Compose_using_Liquid')?['body']"
+          }
+        }
+      }
+    },
+    "outputs": {}
+  },
+  "kind": "Stateful"
+}

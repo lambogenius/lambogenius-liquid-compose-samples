@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Sample HTTP-triggered Azure Function for the CallFunction filter (Functions isolated worker, .NET 8). It follows
+    the Lambogenius bridge contract: POST {"value": "<string>"} as JSON, 200 text/plain UTF-8 with the result,
+    400 for invalid input, 404 for unknown values.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <AzureFunctionsVersion>v4</AzureFunctionsVersion>
+    <OutputType>Exe</OutputType>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Lambogenius.Samples.GetCustomerName</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Azure.Functions.Worker" Version="2.51.0" />
+    <PackageReference Include="Microsoft.Azure.Functions.Worker.Sdk" Version="2.0.7" />
+    <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Http" Version="3.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="host.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="local.settings.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="Never" />
+  </ItemGroup>
+</Project>

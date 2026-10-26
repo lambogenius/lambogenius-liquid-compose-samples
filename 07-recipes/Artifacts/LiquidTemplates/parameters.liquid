@@ -1,0 +1,16 @@
+{%- comment -%}
+  Templates see two objects: content (the action's content input) and parameters (its parameters input). The
+  workflow fills parameters from wherever the value lives: app settings, workflow parameters (parameters.json),
+  trigger headers and query strings, other actions, or expressions such as utcNow().
+{%- endcomment -%}
+{
+  "order": {{ content.orderId | ToJson }},
+  "environment": {{ parameters.environment | ToJson }},
+  "region": {{ parameters.region | ToJson }},
+  "tenant": {{ parameters.tenant | Default: 'unknown' | ToJson }},
+  "mode": {{ parameters.mode | Default: 'normal' | ToJson }},
+  "receivedAt": {{ parameters.receivedAt | ToJson }},
+  "workflow": {{ parameters.workflowName | ToJson }},
+  "limits": {{ parameters.limits | ToJson }},
+  "discountPercent": {{ parameters.limits.discountPercent | ToJson }}
+}

@@ -1,0 +1,12 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "dotnet",
+    "APP_KIND": "workflowApp",
+    "FUNCTIONS_INPROC_NET8_ENABLED": "1",
+    "LiquidCompose__AllowScripts": "true",
+    "LiquidCompose__MaxTimeoutSeconds": "60",
+    "AP_BASE_URL": "http://127.0.0.1:8104/ap"
+  }
+}

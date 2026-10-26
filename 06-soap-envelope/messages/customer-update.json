@@ -1,0 +1,14 @@
+{
+  "customerId": "c300",
+  "name": "Initech \"Québec\" <Ltée> & Co",
+  "email": "AP@Initech.example",
+  "phone": "(514) 555-0199",
+  "address": {
+    "lines": ["1250 boul. René-Lévesque O.", "Bureau 4100"],
+    "city": "Montréal",
+    "region": "qc",
+    "postalCode": "h3b 4w8"
+  },
+  "creditLimit": 25000,
+  "active": true
+}

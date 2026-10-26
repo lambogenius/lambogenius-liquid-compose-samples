@@ -1,0 +1,2 @@
+{%- comment -%} The Function answers 404 for C999; the action fails with FunctionHttpFailed. {%- endcomment -%}
+{ "customer": {{ content.customerId | CallFunction: 'GetCustomerName' | ToJson }} }

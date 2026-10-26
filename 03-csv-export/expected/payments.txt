@@ -1,0 +1,5 @@
+H20261023LAMBO00042                                                             
+D000012345678ACME SUPPLIES                 000000125000INV-2026-0411            
+D000000998877INITECH "QUEBEC" LTEE         000000008995INV-2026-0412            
+D000005550001GLOBEX CORPORATION OF NORTH AM000000000005CREDIT-MEMO-2026         
+T00000300000000134000                                                           

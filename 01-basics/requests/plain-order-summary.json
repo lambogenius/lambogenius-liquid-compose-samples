@@ -1,0 +1,17 @@
+{
+  "order": {
+    "number": " ord-100 ",
+    "customerId": "C100",
+    "priority": false,
+    "lines": [
+      {
+        "sku": " abc-01 ",
+        "quantity": 2
+      },
+      {
+        "sku": " xyz-02 ",
+        "quantity": 1
+      }
+    ]
+  }
+}

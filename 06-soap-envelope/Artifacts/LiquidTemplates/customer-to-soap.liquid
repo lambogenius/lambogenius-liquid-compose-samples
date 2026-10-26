@@ -1,0 +1,46 @@
+{% csharp %}
+// Phone numbers as the CRM stores them (E.164): "(416) 555-0199" -> "+14165550199".
+public string Phone(string value)
+{
+    var digits = Regex.Replace(value ?? "", @"\D", "");
+    if (digits.Length == 10) digits = "1" + digits;
+    return digits.Length == 0 ? "" : "+" + digits;
+}
+
+// xs:decimal with two places, whatever the culture of the server.
+public string Decimal2(double value) => value.ToString("0.00", CultureInfo.InvariantCulture);
+{% endcsharp %}
+{%- comment -%}
+  JSON to an XML text: every value from the request goes through Escape, which turns & < > " ' into entities, so a
+  name such as Initech "Québec" <Ltée> & Co can't break the envelope.
+{%- endcomment -%}
+{%- assign c = content -%}
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:crm="urn:example:legacy-crm:2009">
+  <soap:Header>
+    <crm:ClientInfo>
+      <crm:ApplicationId>{{ parameters.applicationId | Escape }}</crm:ApplicationId>
+      <crm:CorrelationId>{{ parameters.correlationId | Escape }}</crm:CorrelationId>
+    </crm:ClientInfo>
+  </soap:Header>
+  <soap:Body>
+    <crm:UpdateCustomer>
+      <crm:Customer>
+        <crm:CustomerId>{{ c.customerId | Upcase | Escape }}</crm:CustomerId>
+        <crm:Name>{{ c.name | Escape }}</crm:Name>
+        <crm:Email>{{ c.email | Downcase | Escape }}</crm:Email>
+        <crm:Phone>{{ c.phone | Default: '' | CallCSharp: 'Phone' }}</crm:Phone>
+        <crm:Address>
+{% for line in c.address.lines -%}
+          <crm:Line>{{ line | Escape }}</crm:Line>
+{% endfor -%}
+          <crm:City>{{ c.address.city | Escape }}</crm:City>
+          <crm:Region>{{ c.address.region | Upcase | Escape }}</crm:Region>
+          <crm:PostalCode>{{ c.address.postalCode | Upcase | Escape }}</crm:PostalCode>
+        </crm:Address>
+        <crm:CreditLimit>{{ c.creditLimit | CallCSharp: 'Decimal2' }}</crm:CreditLimit>
+        <crm:Active>{% if c.active == false %}false{% else %}true{% endif %}</crm:Active>
+      </crm:Customer>
+    </crm:UpdateCustomer>
+  </soap:Body>
+</soap:Envelope>

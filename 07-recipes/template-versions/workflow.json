@@ -1,0 +1,78 @@
+{
+  "definition": {
+    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+    "contentVersion": "1.0.0.0",
+    "triggers": {
+      "When_an_HTTP_request_is_received": {
+        "type": "Request",
+        "kind": "Http",
+        "inputs": {}
+      }
+    },
+    "actions": {
+      "Receipt_v1": {
+        "type": "ServiceProvider",
+        "runAfter": {},
+        "inputs": {
+          "parameters": {
+            "inputFormat": "json",
+            "outputFormat": "json",
+            "content": "@triggerBody()",
+            "templateSource": "deployed",
+            "templateName": "receipt.liquid"
+          },
+          "serviceProviderConfiguration": {
+            "connectionName": "liquidTemplatesV1",
+            "operationId": "ComposeLiquid",
+            "serviceProviderId": "/serviceProviders/lamboLiquidCompose"
+          },
+          "retryPolicy": {
+            "type": "none"
+          }
+        }
+      },
+      "Receipt_v2": {
+        "type": "ServiceProvider",
+        "runAfter": {},
+        "inputs": {
+          "parameters": {
+            "inputFormat": "json",
+            "outputFormat": "json",
+            "content": "@triggerBody()",
+            "templateSource": "deployed",
+            "templateName": "receipt.liquid"
+          },
+          "serviceProviderConfiguration": {
+            "connectionName": "liquidTemplatesV2",
+            "operationId": "ComposeLiquid",
+            "serviceProviderId": "/serviceProviders/lamboLiquidCompose"
+          },
+          "retryPolicy": {
+            "type": "none"
+          }
+        }
+      },
+      "Response": {
+        "type": "Response",
+        "kind": "Http",
+        "runAfter": {
+          "Receipt_v1": [
+            "Succeeded"
+          ],
+          "Receipt_v2": [
+            "Succeeded"
+          ]
+        },
+        "inputs": {
+          "statusCode": 200,
+          "body": {
+            "v1": "@body('Receipt_v1')?['result']",
+            "v2": "@body('Receipt_v2')?['result']"
+          }
+        }
+      }
+    },
+    "outputs": {}
+  },
+  "kind": "Stateful"
+}

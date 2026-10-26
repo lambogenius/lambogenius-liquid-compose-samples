@@ -1,0 +1,78 @@
+{
+  "definition": {
+    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+    "contentVersion": "1.0.0.0",
+    "triggers": {
+      "When_an_HTTP_request_is_received": {
+        "type": "Request",
+        "kind": "Http",
+        "inputs": {}
+      }
+    },
+    "actions": {
+      "Compose_using_Liquid": {
+        "type": "ServiceProvider",
+        "runAfter": {},
+        "inputs": {
+          "parameters": {
+            "inputFormat": "json",
+            "outputFormat": "json",
+            "content": "@triggerBody()",
+            "templateSource": "deployed",
+            "templateName": "parameters.liquid",
+            "parameters": {
+              "environment": "@appsetting('ENVIRONMENT_NAME')",
+              "region": "@parameters('region')",
+              "limits": "@parameters('limits')",
+              "tenant": "@triggerOutputs()?['headers']?['x-tenant']",
+              "mode": "@triggerOutputs()?['queries']?['mode']",
+              "receivedAt": "@utcNow()",
+              "workflowName": "@workflow()?['name']"
+            }
+          },
+          "serviceProviderConfiguration": {
+            "connectionName": "lamboLiquidCompose",
+            "operationId": "ComposeLiquid",
+            "serviceProviderId": "/serviceProviders/lamboLiquidCompose"
+          },
+          "retryPolicy": {
+            "type": "none"
+          }
+        }
+      },
+      "Response": {
+        "type": "Response",
+        "kind": "Http",
+        "runAfter": {
+          "Compose_using_Liquid": [
+            "Succeeded"
+          ]
+        },
+        "inputs": {
+          "statusCode": 200,
+          "body": "@body('Compose_using_Liquid')?['result']"
+        }
+      },
+      "Failed": {
+        "type": "Response",
+        "kind": "Http",
+        "runAfter": {
+          "Compose_using_Liquid": [
+            "Failed",
+            "TimedOut"
+          ]
+        },
+        "inputs": {
+          "statusCode": 500,
+          "body": {
+            "error": "The template failed.",
+            "code": "@first(split(last(split(string(outputs('Compose_using_Liquid')?['body']?['message']), 'error message ''')), ':'))",
+            "message": "@outputs('Compose_using_Liquid')?['body']?['message']"
+          }
+        }
+      }
+    },
+    "outputs": {}
+  },
+  "kind": "Stateful"
+}

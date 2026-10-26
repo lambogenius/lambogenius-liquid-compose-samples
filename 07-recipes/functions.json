@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "functions": {
+    "GetCustomerName": {
+      "endpoint": "http://127.0.0.1:7075/api/GetCustomerName",
+      "authentication": { "mode": "None" },
+      "timeoutSeconds": 5,
+      "maxRequestBytes": 65536,
+      "maxResponseBytes": 65536,
+      "cacheWithinTransform": true,
+      "retryCount": 0
+    }
+  }
+}

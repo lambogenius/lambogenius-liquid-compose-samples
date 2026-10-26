@@ -1,0 +1,10 @@
+{% csharp %}
+// Spins for 10 seconds. The workflow gives this case timeoutSeconds 5, so the worker process running it is stopped.
+public string Slow(string value)
+{
+    var end = DateTime.UtcNow.AddSeconds(10);
+    while (DateTime.UtcNow < end) { }
+    return value;
+}
+{% endcsharp %}
+{ "order": {{ content.orderId | CallCSharp: 'Slow' | ToJson }} }

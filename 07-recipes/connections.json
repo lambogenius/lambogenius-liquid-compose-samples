@@ -1,0 +1,31 @@
+{
+  "serviceProviderConnections": {
+    "lamboLiquidCompose": {
+      "displayName": "Liquid Compose (Lambogenius)",
+      "serviceProvider": {
+        "id": "/serviceProviders/lamboLiquidCompose"
+      },
+      "parameterValues": {
+        "templateFolder": ""
+      }
+    },
+    "liquidTemplatesV1": {
+      "displayName": "Liquid Compose: templates v1",
+      "serviceProvider": {
+        "id": "/serviceProviders/lamboLiquidCompose"
+      },
+      "parameterValues": {
+        "templateFolder": "v1"
+      }
+    },
+    "liquidTemplatesV2": {
+      "displayName": "Liquid Compose: templates v2",
+      "serviceProvider": {
+        "id": "/serviceProviders/lamboLiquidCompose"
+      },
+      "parameterValues": {
+        "templateFolder": "v2"
+      }
+    }
+  }
+}

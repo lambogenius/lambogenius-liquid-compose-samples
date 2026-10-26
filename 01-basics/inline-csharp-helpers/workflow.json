@@ -1,0 +1,68 @@
+{
+  "definition": {
+    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+    "contentVersion": "1.0.0.0",
+    "triggers": {
+      "When_an_HTTP_request_is_received": {
+        "type": "Request",
+        "kind": "Http",
+        "inputs": {}
+      }
+    },
+    "actions": {
+      "Compose_using_Liquid": {
+        "type": "ServiceProvider",
+        "runAfter": {},
+        "inputs": {
+          "parameters": {
+            "inputFormat": "json",
+            "outputFormat": "json",
+            "content": "@triggerBody()",
+            "templateSource": "inline",
+            "template": "{% csharp %}\npublic string NormalizeCode(string value)\n{\n    return (value ?? \"\").Trim().ToUpperInvariant();\n}\n\npublic double WithTax(double amount)\n{\n    return Math.Round(amount * 1.13, 2);\n}\n\npublic bool IsBulk(double quantity) => quantity >= Threshold;\n\nprivate const double Threshold = 3;\n{% endcsharp %}\n{\n  \"code\": {{ content.code | CallCSharp: 'NormalizeCode' | ToJson }},\n  \"priceWithTax\": {{ content.price | CallCSharp: 'WithTax' | ToJson }},\n  \"bulk\": {{ content.quantity | CallCSharp: 'IsBulk' | ToJson }}\n}",
+            "enableScripts": true
+          },
+          "serviceProviderConfiguration": {
+            "connectionName": "lamboLiquidCompose",
+            "operationId": "ComposeLiquid",
+            "serviceProviderId": "/serviceProviders/lamboLiquidCompose"
+          },
+          "retryPolicy": {
+            "type": "none"
+          }
+        }
+      },
+      "Response": {
+        "type": "Response",
+        "kind": "Http",
+        "runAfter": {
+          "Compose_using_Liquid": [
+            "Succeeded"
+          ]
+        },
+        "inputs": {
+          "statusCode": 200,
+          "body": "@body('Compose_using_Liquid')?['result']"
+        }
+      },
+      "Failure_response": {
+        "type": "Response",
+        "kind": "Http",
+        "runAfter": {
+          "Compose_using_Liquid": [
+            "Failed",
+            "TimedOut"
+          ]
+        },
+        "inputs": {
+          "statusCode": 500,
+          "body": {
+            "error": "@outputs('Compose_using_Liquid')?['body']"
+          }
+        }
+      }
+    },
+    "outputs": {}
+  },
+  "kind": "Stateful"
+}

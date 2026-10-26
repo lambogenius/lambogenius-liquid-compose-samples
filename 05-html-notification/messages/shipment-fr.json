@@ -1,0 +1,18 @@
+{
+  "event": "order.shipped",
+  "orderNumber": "WEB-1004",
+  "customer": {
+    "firstName": "Zoë",
+    "email": "zoe@example.com",
+    "language": "FR"
+  },
+  "shipment": {
+    "carrier": "Canada Post",
+    "trackingNumber": "7023 2104 5566 8899",
+    "estimatedDelivery": "2026-10-27"
+  },
+  "items": [
+    { "sku": "CRM-07", "name": "Crème « hiver » 250 ml", "quantity": 3 }
+  ],
+  "giftMessage": null
+}

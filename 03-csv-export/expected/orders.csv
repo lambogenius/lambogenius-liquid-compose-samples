@@ -1,0 +1,5 @@
+order_number,placed_on,customer,email,status,total,currency,note
+1001,2026-10-20,Acme Supplies,orders@acme.example,PAID,129.90,CAD,
+1002,2026-10-20,"Globex, Corporation",ap@globex.example,PAID,1250.00,USD,"Leave at the ""back"" door"
+1003,2026-10-21,"Initech ""Québec"" Ltée",,REFUNDED,45.50,CAD,"Two lines:
+first, then second"

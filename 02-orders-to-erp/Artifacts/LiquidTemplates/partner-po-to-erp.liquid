@@ -1,0 +1,69 @@
+{% csharp %}
+public string Code(string value)
+{
+    return (value ?? "").Trim().ToUpperInvariant();
+}
+
+// XML values are strings; the ERP wants numbers.
+public double Number(string value)
+{
+    return Math.Round(double.Parse(value, NumberStyles.Number, CultureInfo.InvariantCulture), 2);
+}
+
+public string PostalCode(string value)
+{
+    var compact = Regex.Replace(value ?? "", @"\s", "").ToUpperInvariant();
+    return compact.Length == 6 ? compact.Substring(0, 3) + " " + compact.Substring(3) : compact;
+}
+
+public string TaxCode(string province)
+{
+    switch ((province ?? "").Trim().ToUpperInvariant())
+    {
+        case "ON": return "HST13";
+        case "NB": case "NL": case "NS": case "PE": return "HST15";
+        case "QC": return "GST-QST";
+        case "BC": case "MB": case "SK": return "GST-PST";
+        default: return "GST5";
+    }
+}
+{% endcsharp %}
+{%- assign parts = content | XmlValues: '/po:PurchaseOrder/po:Items/po:Item/po:PartNumber' -%}
+{%- assign descriptions = content | XmlValues: '/po:PurchaseOrder/po:Items/po:Item/po:Description' -%}
+{%- assign quantities = content | XmlValues: '/po:PurchaseOrder/po:Items/po:Item/po:Qty' -%}
+{%- assign prices = content | XmlValues: '/po:PurchaseOrder/po:Items/po:Item/po:UnitPrice' -%}
+{%- assign account = content | XmlValue: '/po:PurchaseOrder/po:Buyer/po:Account' | CallCSharp: 'Code' -%}
+{%- assign region = content | XmlValue: '/po:PurchaseOrder/po:ShipTo/po:Region' -%}
+{
+  "externalOrderId": {{ content | XmlValue: '/po:PurchaseOrder/po:PONumber' | Upcase | Prepend: 'EDI-' | ToJson }},
+  "channel": "partner",
+  "orderDate": {{ content | XmlValue: '/po:PurchaseOrder/po:OrderDate' | ToJson }},
+  "customer": {
+    "account": {{ account | ToJson }},
+    "name": {{ account | CallFunction: 'GetCustomerName' | ToJson }},
+    "email": {{ content | XmlValue: '/po:PurchaseOrder/po:Buyer/po:Contact' | Downcase | ToJson }}
+  },
+  "shipTo": {
+    "name": {{ content | XmlValue: '/po:PurchaseOrder/po:ShipTo/po:Name' | ToJson }},
+    "street": {{ content | XmlValue: '/po:PurchaseOrder/po:ShipTo/po:Street' | ToJson }},
+    "city": {{ content | XmlValue: '/po:PurchaseOrder/po:ShipTo/po:City' | ToJson }},
+    "region": {{ region | Upcase | ToJson }},
+    "postalCode": {{ content | XmlValue: '/po:PurchaseOrder/po:ShipTo/po:PostalCode' | CallCSharp: 'PostalCode' | ToJson }},
+    "country": {{ content | XmlValue: '/po:PurchaseOrder/po:ShipTo/po:Country' | Upcase | ToJson }}
+  },
+  "taxCode": {{ region | CallCSharp: 'TaxCode' | ToJson }},
+  "currency": {{ parameters.defaultCurrency | ToJson }},
+  "lines": [
+    {%- for part in parts -%}
+    {%- assign i = forloop.index0 -%}
+    {
+      "lineNo": {{ forloop.index | Times: 10 | ToJson }},
+      "item": {{ part | CallCSharp: 'Code' | ToJson }},
+      "description": {{ descriptions[i] | ToJson }},
+      "quantity": {{ quantities[i] | CallCSharp: 'Number' | ToJson }},
+      "unitPrice": {{ prices[i] | CallCSharp: 'Number' | ToJson }}
+    }{% unless forloop.last %},{% endunless %}
+    {%- endfor %}
+  ],
+  "freight": 0
+}

@@ -1,0 +1,27 @@
+{% csharp %}
+// XML values are strings; the caller wants the version as a number.
+public double Number(string value) => double.Parse(value, NumberStyles.Number, CultureInfo.InvariantCulture);
+{% endcsharp %}
+{%- comment -%}
+  Reads either a successful UpdateCustomerResponse or a SOAP 1.1 Fault. Prefixes (xmlNamespaces in the workflow):
+  soap = the SOAP 1.1 envelope, crm = the CRM's namespace. A Fault's faultcode and faultstring have no namespace.
+{%- endcomment -%}
+{%- assign faultcode = content | XmlValue: '/soap:Envelope/soap:Body/soap:Fault/faultcode' -%}
+{%- if faultcode -%}
+{
+  "ok": false,
+  "faultcode": {{ faultcode | ToJson }},
+  "sender": {% if faultcode contains 'Client' %}true{% else %}false{% endif %},
+  "faultstring": {{ content | XmlValue: '/soap:Envelope/soap:Body/soap:Fault/faultstring' | ToJson }},
+  "errorCode": {{ content | XmlValue: '/soap:Envelope/soap:Body/soap:Fault/detail/crm:ValidationError/crm:Code' | ToJson }},
+  "field": {{ content | XmlValue: '/soap:Envelope/soap:Body/soap:Fault/detail/crm:ValidationError/crm:Field' | ToJson }}
+}
+{%- else -%}
+{
+  "ok": true,
+  "customerId": {{ content | XmlValue: '/soap:Envelope/soap:Body/crm:UpdateCustomerResponse/crm:UpdateCustomerResult/crm:CustomerId' | ToJson }},
+  "version": {{ content | XmlValue: '/soap:Envelope/soap:Body/crm:UpdateCustomerResponse/crm:UpdateCustomerResult/crm:Version' | CallCSharp: 'Number' | ToJson }},
+  "updatedAt": {{ content | XmlValue: '/soap:Envelope/soap:Body/crm:UpdateCustomerResponse/crm:UpdateCustomerResult/crm:UpdatedAt' | ToJson }},
+  "warnings": {{ content | XmlValues: '/soap:Envelope/soap:Body/crm:UpdateCustomerResponse/crm:UpdateCustomerResult/crm:Warnings/crm:Warning' | ToJson }}
+}
+{%- endif -%}

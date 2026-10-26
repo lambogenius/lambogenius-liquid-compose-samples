@@ -1,0 +1,6 @@
+ORDER {{ content.order.number | Strip | Upcase }}
+Customer: {{ content.order.customerId }}
+{% for line in content.order.lines -%}
+  {{ forloop.index }}. {{ line.sku | Strip }} x {{ line.quantity }}
+{% endfor -%}
+    -- end of order --

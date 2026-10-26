@@ -1,0 +1,171 @@
+{
+  "definition": {
+    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+    "contentVersion": "1.0.0.0",
+    "triggers": {
+      "When_an_HTTP_request_is_received": {
+        "type": "Request",
+        "kind": "Http",
+        "inputs": {}
+      }
+    },
+    "actions": {
+      "Compose_the_HTML_body": {
+        "type": "ServiceProvider",
+        "runAfter": {},
+        "inputs": {
+          "parameters": {
+            "inputFormat": "json",
+            "outputFormat": "text",
+            "content": "@triggerBody()",
+            "templateSource": "deployed",
+            "templateName": "shipment-email.liquid",
+            "parameters": {
+              "shopName": "@appsetting('SHOP_NAME')",
+              "supportEmail": "@appsetting('SUPPORT_EMAIL')"
+            },
+            "enableScripts": true,
+            "timeoutSeconds": 30
+          },
+          "serviceProviderConfiguration": {
+            "connectionName": "lamboLiquidCompose",
+            "operationId": "ComposeLiquid",
+            "serviceProviderId": "/serviceProviders/lamboLiquidCompose"
+          },
+          "retryPolicy": {
+            "type": "none"
+          }
+        }
+      },
+      "Compose_the_subject_and_text": {
+        "type": "ServiceProvider",
+        "runAfter": {
+          "Compose_the_HTML_body": [
+            "Succeeded"
+          ]
+        },
+        "inputs": {
+          "parameters": {
+            "inputFormat": "json",
+            "outputFormat": "json",
+            "content": "@triggerBody()",
+            "templateSource": "inline",
+            "template": "{%- assign lang = content.customer.language | Default: 'en' | Downcase -%}\n{%- capture subject -%}\n{%- if lang == 'fr' -%}Votre commande {{ content.orderNumber }} est en route{%- else -%}Your order {{ content.orderNumber }} is on its way{%- endif -%}\n{%- endcapture -%}\n{%- capture text -%}\n{% if lang == 'fr' %}Bonjour {{ content.customer.firstName }},\n\nVotre commande {{ content.orderNumber }} a été expédiée par {{ content.shipment.carrier }}, numéro de suivi {{ content.shipment.trackingNumber }}.\n{% else %}Hi {{ content.customer.firstName }},\n\nYour order {{ content.orderNumber }} has shipped with {{ content.shipment.carrier }}, tracking number {{ content.shipment.trackingNumber }}.\n{% endif %}\n{% for item in content.items %}- {{ item.quantity }} x {{ item.name }}\n{% endfor %}{% if content.giftMessage %}\n{{ content.giftMessage }}\n{% endif %}\n-- {{ parameters.shopName }}{% endcapture -%}\n{\n  \"to\": {{ content.customer.email | ToJson }},\n  \"subject\": {{ subject | ToJson }},\n  \"text\": {{ text | ToJson }}\n}",
+            "parameters": {
+              "shopName": "@appsetting('SHOP_NAME')",
+              "supportEmail": "@appsetting('SUPPORT_EMAIL')"
+            },
+            "timeoutSeconds": 30
+          },
+          "serviceProviderConfiguration": {
+            "connectionName": "lamboLiquidCompose",
+            "operationId": "ComposeLiquid",
+            "serviceProviderId": "/serviceProviders/lamboLiquidCompose"
+          },
+          "retryPolicy": {
+            "type": "none"
+          }
+        }
+      },
+      "Send_the_email": {
+        "type": "Http",
+        "runAfter": {
+          "Compose_the_subject_and_text": [
+            "Succeeded"
+          ]
+        },
+        "inputs": {
+          "method": "POST",
+          "uri": "@{appsetting('MAIL_BASE_URL')}/messages",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "to": "@body('Compose_the_subject_and_text')?['result']?['to']",
+            "subject": "@body('Compose_the_subject_and_text')?['result']?['subject']",
+            "text": "@body('Compose_the_subject_and_text')?['result']?['text']",
+            "html": "@body('Compose_the_HTML_body')?['result']"
+          },
+          "retryPolicy": {
+            "type": "fixed",
+            "count": 2,
+            "interval": "PT5S"
+          }
+        }
+      },
+      "Queued": {
+        "type": "Response",
+        "kind": "Http",
+        "runAfter": {
+          "Send_the_email": [
+            "Succeeded"
+          ]
+        },
+        "inputs": {
+          "statusCode": 202,
+          "body": {
+            "status": "queued",
+            "messageId": "@body('Send_the_email')?['messageId']",
+            "subject": "@body('Compose_the_subject_and_text')?['result']?['subject']",
+            "preview": "@{appsetting('MAIL_BASE_URL')}/messages/@{body('Send_the_email')?['messageId']}.html"
+          }
+        }
+      },
+      "Not_sent": {
+        "type": "Response",
+        "kind": "Http",
+        "runAfter": {
+          "Send_the_email": [
+            "Failed",
+            "TimedOut"
+          ]
+        },
+        "inputs": {
+          "statusCode": "@coalesce(outputs('Send_the_email')?['statusCode'], 502)",
+          "body": {
+            "error": "The mail API did not accept the email.",
+            "mail": "@body('Send_the_email')"
+          }
+        }
+      },
+      "HTML_not_composed": {
+        "type": "Response",
+        "kind": "Http",
+        "runAfter": {
+          "Compose_the_HTML_body": [
+            "Failed",
+            "TimedOut"
+          ]
+        },
+        "inputs": {
+          "statusCode": 422,
+          "body": {
+            "error": "The email could not be composed.",
+            "code": "@first(split(last(split(string(outputs('Compose_the_HTML_body')?['body']?['message']), 'error message ''')), ':'))",
+            "message": "@outputs('Compose_the_HTML_body')?['body']?['message']"
+          }
+        }
+      },
+      "Text_not_composed": {
+        "type": "Response",
+        "kind": "Http",
+        "runAfter": {
+          "Compose_the_subject_and_text": [
+            "Failed",
+            "TimedOut"
+          ]
+        },
+        "inputs": {
+          "statusCode": 422,
+          "body": {
+            "error": "The email could not be composed.",
+            "code": "@first(split(last(split(string(outputs('Compose_the_subject_and_text')?['body']?['message']), 'error message ''')), ':'))",
+            "message": "@outputs('Compose_the_subject_and_text')?['body']?['message']"
+          }
+        }
+      }
+    },
+    "outputs": {}
+  },
+  "kind": "Stateful"
+}

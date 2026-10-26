@@ -1,0 +1,9 @@
+{% csharp %}
+public double Percent(string value)
+{
+    var number = double.Parse(value, NumberStyles.Number, CultureInfo.InvariantCulture);
+    if (number < 0 || number > 100) throw new ArgumentOutOfRangeException(nameof(value));
+    return number;
+}
+{% endcsharp %}
+{ "discount": {{ content.discount | CallCSharp: 'Percent' | ToJson }} }

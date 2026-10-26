@@ -1,0 +1,12 @@
+{%- assign total = 0 -%}
+{%- for line in content.order.lines -%}
+  {%- assign total = total | Plus: line.quantity -%}
+{%- endfor -%}
+{
+  "order": {{ content.order.number | Strip | Upcase | ToJson }},
+  "customer": {{ content.order.customerId | ToJson }},
+  "lineCount": {{ content.order.lines | Size }},
+  "totalQuantity": {{ total }},
+  "priority": {% if content.order.priority %}true{% else %}false{% endif %},
+  "lines": [{% for line in content.order.lines %}{% include 'partials/line.liquid' with line %}{% unless forloop.last %},{% endunless %}{% endfor %}]
+}

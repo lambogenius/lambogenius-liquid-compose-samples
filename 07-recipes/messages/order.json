@@ -1,0 +1,7 @@
+{
+  "orderId": "SO-2001",
+  "total": 149.99,
+  "currency": "CAD",
+  "billTo": { "name": "Acme Supplies", "street": "100 King St W", "city": "Toronto", "postalCode": "m5x 1a9" },
+  "shipTo": { "name": "Acme Warehouse", "street": "55 Industrial Rd", "city": "Mississauga", "postalCode": "l5t 2h6" }
+}

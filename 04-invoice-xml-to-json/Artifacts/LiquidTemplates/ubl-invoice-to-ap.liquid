@@ -1,0 +1,84 @@
+{% csharp %}
+// XML values are strings; the AP system wants numbers.
+public double Number(string value)
+{
+    return double.Parse(value, NumberStyles.Number, CultureInfo.InvariantCulture);
+}
+
+// Fields accounts payable can't do without: an empty value fails the action, so a bad invoice is never sent.
+// (The action reports that the helper threw; the exception's text is not passed on.)
+public string Required(string value)
+{
+    if (string.IsNullOrWhiteSpace(value)) throw new ArgumentException("A required field is empty.");
+    return value.Trim();
+}
+
+// Days between the issue date and the due date, passed as "2026-10-01|2026-10-31" (helpers take one argument).
+public double TermsDays(string dates)
+{
+    var parts = (dates ?? "").Split('|');
+    if (parts.Length != 2 || parts[1].Length == 0) return 0;
+    var issued = DateTime.ParseExact(parts[0], "yyyy-MM-dd", CultureInfo.InvariantCulture);
+    var due = DateTime.ParseExact(parts[1], "yyyy-MM-dd", CultureInfo.InvariantCulture);
+    return (due - issued).TotalDays;
+}
+
+// UN/ECE unit codes as the AP system names them.
+public string Unit(string code)
+{
+    switch ((code ?? "").Trim().ToUpperInvariant())
+    {
+        case "EA": case "C62": case "H87": return "each";
+        case "HUR": return "hour";
+        case "KGM": return "kg";
+        case "MTR": return "m";
+        default: return (code ?? "").Trim().ToLowerInvariant();
+    }
+}
+{% endcsharp %}
+{%- comment -%}
+  Prefixes (set in the workflow's xmlNamespaces input): inv = the UBL Invoice namespace, which is the document's
+  default namespace; cac and cbc = UBL's aggregate and basic components. XPath needs a prefix for every element,
+  including those in the default namespace.
+{%- endcomment -%}
+{%- assign lineIds = content | XmlValues: '/inv:Invoice/cac:InvoiceLine/cbc:ID' -%}
+{%- assign skus = content | XmlValues: '/inv:Invoice/cac:InvoiceLine/cac:Item/cac:SellersItemIdentification/cbc:ID' -%}
+{%- assign names = content | XmlValues: '/inv:Invoice/cac:InvoiceLine/cac:Item/cbc:Name' -%}
+{%- assign quantities = content | XmlValues: '/inv:Invoice/cac:InvoiceLine/cbc:InvoicedQuantity' -%}
+{%- assign units = content | XmlValues: '/inv:Invoice/cac:InvoiceLine/cbc:InvoicedQuantity/@unitCode' -%}
+{%- assign prices = content | XmlValues: '/inv:Invoice/cac:InvoiceLine/cac:Price/cbc:PriceAmount' -%}
+{%- assign amounts = content | XmlValues: '/inv:Invoice/cac:InvoiceLine/cbc:LineExtensionAmount' -%}
+{%- assign issued = content | XmlValue: '/inv:Invoice/cbc:IssueDate' -%}
+{%- assign due = content | XmlValue: '/inv:Invoice/cbc:DueDate' -%}
+{%- assign po = content | XmlValue: '/inv:Invoice/cac:OrderReference/cbc:ID' -%}
+{
+  "supplierInvoiceNumber": {{ content | XmlValue: '/inv:Invoice/cbc:ID' | Default: '' | CallCSharp: 'Required' | ToJson }},
+  "purchaseOrder": {{ po | Default: '' | CallCSharp: 'Required' | ToJson }},
+  "supplier": {
+    "name": {{ content | XmlValue: '/inv:Invoice/cac:AccountingSupplierParty/cac:Party/cac:PartyName/cbc:Name' | ToJson }},
+    "taxId": {{ content | XmlValue: '/inv:Invoice/cac:AccountingSupplierParty/cac:Party/cac:PartyTaxScheme/cbc:CompanyID' | ToJson }},
+    "email": {{ content | XmlValue: '/inv:Invoice/cac:AccountingSupplierParty/cac:Party/cac:Contact/cbc:ElectronicMail' | Downcase | ToJson }}
+  },
+  "invoiceDate": {{ issued | ToJson }},
+  "dueDate": {{ due | ToJson }},
+  "paymentTermsDays": {{ issued | Append: '|' | Append: due | CallCSharp: 'TermsDays' | ToJson }},
+  "currency": {{ content | XmlValue: '/inv:Invoice/cbc:DocumentCurrencyCode' | ToJson }},
+  "note": {{ content | XmlValue: '/inv:Invoice/cbc:Note' | ToJson }},
+  "lines": [
+    {%- for id in lineIds -%}
+    {%- assign i = forloop.index0 -%}
+    {
+      "lineNo": {{ id | CallCSharp: 'Number' | ToJson }},
+      "sku": {{ skus[i] | ToJson }},
+      "description": {{ names[i] | ToJson }},
+      "quantity": {{ quantities[i] | CallCSharp: 'Number' | ToJson }},
+      "unit": {{ units[i] | CallCSharp: 'Unit' | ToJson }},
+      "unitPrice": {{ prices[i] | CallCSharp: 'Number' | ToJson }},
+      "amount": {{ amounts[i] | CallCSharp: 'Number' | ToJson }}
+    }{% unless forloop.last %},{% endunless %}
+    {%- endfor %}
+  ],
+  "subtotal": {{ content | XmlValue: '/inv:Invoice/cac:LegalMonetaryTotal/cbc:TaxExclusiveAmount' | CallCSharp: 'Number' | ToJson }},
+  "tax": {{ content | XmlValue: '/inv:Invoice/cac:TaxTotal/cbc:TaxAmount' | CallCSharp: 'Number' | ToJson }},
+  "total": {{ content | XmlValue: '/inv:Invoice/cac:LegalMonetaryTotal/cbc:PayableAmount' | CallCSharp: 'Number' | ToJson }}
+}

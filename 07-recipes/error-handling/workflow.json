@@ -1,0 +1,77 @@
+{
+  "definition": {
+    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+    "contentVersion": "1.0.0.0",
+    "triggers": {
+      "When_an_HTTP_request_is_received": {
+        "type": "Request",
+        "kind": "Http",
+        "inputs": {}
+      }
+    },
+    "actions": {
+      "Compose_using_Liquid": {
+        "type": "ServiceProvider",
+        "runAfter": {},
+        "inputs": {
+          "parameters": {
+            "inputFormat": "json",
+            "outputFormat": "json",
+            "content": "@triggerBody()",
+            "templateSource": "deployed",
+            "templateName": "@{concat('errors/', triggerOutputs()?['queries']?['case'], '.liquid')}",
+            "enableScripts": "@contains(createArray('helper-throws', 'slow-helper'), triggerOutputs()?['queries']?['case'])",
+            "allowedFunctionAliases": "@if(equals(triggerOutputs()?['queries']?['case'], 'unknown-customer'), createArray('GetCustomerName'), json('[]'))",
+            "timeoutSeconds": "@if(equals(triggerOutputs()?['queries']?['case'], 'slow-helper'), 5, 30)"
+          },
+          "serviceProviderConfiguration": {
+            "connectionName": "lamboLiquidCompose",
+            "operationId": "ComposeLiquid",
+            "serviceProviderId": "/serviceProviders/lamboLiquidCompose"
+          },
+          "retryPolicy": {
+            "type": "none"
+          }
+        }
+      },
+      "Unexpected_success": {
+        "type": "Response",
+        "kind": "Http",
+        "runAfter": {
+          "Compose_using_Liquid": [
+            "Succeeded"
+          ]
+        },
+        "inputs": {
+          "statusCode": 500,
+          "body": {
+            "error": "This case was expected to fail.",
+            "result": "@body('Compose_using_Liquid')?['result']"
+          }
+        }
+      },
+      "How_it_failed": {
+        "type": "Response",
+        "kind": "Http",
+        "runAfter": {
+          "Compose_using_Liquid": [
+            "Failed",
+            "TimedOut"
+          ]
+        },
+        "inputs": {
+          "statusCode": 200,
+          "body": {
+            "case": "@{triggerOutputs()?['queries']?['case']}",
+            "actionStatus": "@{actions('Compose_using_Liquid')?['status']}",
+            "statusCode": "@outputs('Compose_using_Liquid')?['statusCode']",
+            "code": "@first(split(last(split(string(outputs('Compose_using_Liquid')?['body']?['message']), 'error message ''')), ':'))",
+            "message": "@outputs('Compose_using_Liquid')?['body']?['message']"
+          }
+        }
+      }
+    },
+    "outputs": {}
+  },
+  "kind": "Stateful"
+}

@@ -1,0 +1,42 @@
+{%- comment -%}
+  Plain Liquid, no Lambogenius extensions except ToJson: assign, capture, if / elsif, case / when, for with limit,
+  offset and reversed, forloop variables, and the common filters. DotLiquid names filters with a capital letter
+  (Upcase, not upcase).
+{%- endcomment -%}
+{%- assign items = content.cart.items -%}
+{%- assign count = items | Size -%}
+{%- assign subtotal = 0 -%}
+{%- for item in items -%}
+  {%- assign line = item.price | Times: item.quantity -%}
+  {%- assign subtotal = subtotal | Plus: line -%}
+{%- endfor -%}
+{%- capture greeting -%}Hello {{ content.customer.firstName | Capitalize }}{%- endcapture -%}
+{%- if subtotal >= 100 -%}
+  {%- assign tier = 'free shipping' -%}
+{%- elsif subtotal >= 50 -%}
+  {%- assign tier = 'reduced shipping' -%}
+{%- else -%}
+  {%- assign tier = 'standard shipping' -%}
+{%- endif -%}
+{%- case content.customer.country -%}
+  {%- when 'CA' -%}{%- assign country = 'Canada' -%}
+  {%- when 'US' -%}{%- assign country = 'United States' -%}
+  {%- else -%}{%- assign country = 'elsewhere' -%}
+{%- endcase -%}
+{
+  "greeting": {{ greeting | ToJson }},
+  "itemCount": {{ count }},
+  "subtotal": {{ subtotal }},
+  "shipping": {{ tier | ToJson }},
+  "country": {{ country | ToJson }},
+  "skus": {{ items | Map: 'sku' | Join: ',' | ToJson }},
+  "firstTwo": [{% for item in items limit: 2 %}{{ item.sku | ToJson }}{% unless forloop.last %}, {% endunless %}{% endfor %}],
+  "afterFirst": [{% for item in items offset: 1 %}{{ item.sku | ToJson }}{% unless forloop.last %}, {% endunless %}{% endfor %}],
+  "reversed": [{% for item in items reversed %}{{ item.sku | ToJson }}{% unless forloop.last %}, {% endunless %}{% endfor %}],
+  "numbered": [{% for item in items %}{{ forloop.index | Append: '/' | Append: forloop.length | Append: ' ' | Append: item.name | ToJson }}{% unless forloop.last %}, {% endunless %}{% endfor %}],
+  "tags": {{ content.cart.tags | Split: ';' | ToJson }},
+  "shortNote": {{ content.cart.note | Truncate: 20 | ToJson }},
+  "slug": {{ content.cart.note | Downcase | Replace: ' ', '-' | Remove: '!' | ToJson }},
+  "hasGift": {% if content.cart.note contains 'gift' %}true{% else %}false{% endif %},
+  "average": {{ subtotal | DividedBy: count | Round: 2 }}
+}

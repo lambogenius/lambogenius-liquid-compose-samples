@@ -1,0 +1,117 @@
+{
+  "definition": {
+    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+    "contentVersion": "1.0.0.0",
+    "triggers": {
+      "When_an_HTTP_request_is_received": {
+        "type": "Request",
+        "kind": "Http",
+        "inputs": {}
+      }
+    },
+    "actions": {
+      "Map_the_invoice": {
+        "type": "ServiceProvider",
+        "runAfter": {},
+        "inputs": {
+          "parameters": {
+            "inputFormat": "xml",
+            "outputFormat": "json",
+            "content": "@{triggerBody()}",
+            "templateSource": "deployed",
+            "templateName": "ubl-invoice-to-ap.liquid",
+            "xmlNamespaces": {
+              "inv": "urn:oasis:names:specification:ubl:schema:xsd:Invoice-2",
+              "cac": "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2",
+              "cbc": "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2"
+            },
+            "enableScripts": true,
+            "timeoutSeconds": 30
+          },
+          "serviceProviderConfiguration": {
+            "connectionName": "lamboLiquidCompose",
+            "operationId": "ComposeLiquid",
+            "serviceProviderId": "/serviceProviders/lamboLiquidCompose"
+          },
+          "retryPolicy": {
+            "type": "none"
+          }
+        }
+      },
+      "Send_to_accounts_payable": {
+        "type": "Http",
+        "runAfter": {
+          "Map_the_invoice": [
+            "Succeeded"
+          ]
+        },
+        "inputs": {
+          "method": "POST",
+          "uri": "@{appsetting('AP_BASE_URL')}/invoices",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": "@body('Map_the_invoice')?['result']",
+          "retryPolicy": {
+            "type": "none"
+          }
+        }
+      },
+      "Accepted": {
+        "type": "Response",
+        "kind": "Http",
+        "runAfter": {
+          "Send_to_accounts_payable": [
+            "Succeeded"
+          ]
+        },
+        "inputs": {
+          "statusCode": 201,
+          "body": {
+            "status": "accepted",
+            "apInvoiceId": "@body('Send_to_accounts_payable')?['apInvoiceId']",
+            "supplierInvoiceNumber": "@body('Map_the_invoice')?['result']?['supplierInvoiceNumber']",
+            "total": "@body('Map_the_invoice')?['result']?['total']"
+          }
+        }
+      },
+      "Rejected_by_accounts_payable": {
+        "type": "Response",
+        "kind": "Http",
+        "runAfter": {
+          "Send_to_accounts_payable": [
+            "Failed",
+            "TimedOut"
+          ]
+        },
+        "inputs": {
+          "statusCode": "@coalesce(outputs('Send_to_accounts_payable')?['statusCode'], 502)",
+          "body": {
+            "error": "Accounts payable did not accept the invoice.",
+            "accountsPayable": "@body('Send_to_accounts_payable')"
+          }
+        }
+      },
+      "Not_mapped": {
+        "type": "Response",
+        "kind": "Http",
+        "runAfter": {
+          "Map_the_invoice": [
+            "Failed",
+            "TimedOut"
+          ]
+        },
+        "inputs": {
+          "statusCode": 422,
+          "body": {
+            "error": "The invoice could not be mapped. Nothing was sent to accounts payable.",
+            "code": "@first(split(last(split(string(outputs('Map_the_invoice')?['body']?['message']), 'error message ''')), ':'))",
+            "message": "@outputs('Map_the_invoice')?['body']?['message']"
+          }
+        }
+      }
+    },
+    "outputs": {}
+  },
+  "kind": "Stateful"
+}

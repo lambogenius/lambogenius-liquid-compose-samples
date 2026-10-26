@@ -1,0 +1,19 @@
+{
+  "event": "order.shipped",
+  "orderNumber": "WEB-1001",
+  "customer": {
+    "firstName": "Sam",
+    "email": "sam@example.com",
+    "language": "en"
+  },
+  "shipment": {
+    "carrier": "Purolator",
+    "trackingNumber": "PUR 3301 2299 01",
+    "estimatedDelivery": "2026-10-24"
+  },
+  "items": [
+    { "sku": "ABC-01", "name": "Widget <Pro> & carrying case", "quantity": 2 },
+    { "sku": "XYZ-02", "name": "Gizmo \"Mini\"", "quantity": 1 }
+  ],
+  "giftMessage": "<script>alert('hi')</script>Happy birthday!\nFrom all of us"
+}

@@ -1,0 +1,149 @@
+{
+  "definition": {
+    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+    "contentVersion": "1.0.0.0",
+    "triggers": {
+      "When_an_HTTP_request_is_received": {
+        "type": "Request",
+        "kind": "Http",
+        "inputs": {}
+      }
+    },
+    "actions": {
+      "Build_the_SOAP_request": {
+        "type": "ServiceProvider",
+        "runAfter": {},
+        "inputs": {
+          "parameters": {
+            "inputFormat": "json",
+            "outputFormat": "text",
+            "content": "@triggerBody()",
+            "templateSource": "deployed",
+            "templateName": "customer-to-soap.liquid",
+            "parameters": {
+              "applicationId": "@appsetting('CRM_APPLICATION_ID')",
+              "correlationId": "@{workflow()?['run']?['name']}"
+            },
+            "enableScripts": true,
+            "timeoutSeconds": 30
+          },
+          "serviceProviderConfiguration": {
+            "connectionName": "lamboLiquidCompose",
+            "operationId": "ComposeLiquid",
+            "serviceProviderId": "/serviceProviders/lamboLiquidCompose"
+          },
+          "retryPolicy": {
+            "type": "none"
+          }
+        }
+      },
+      "Call_the_CRM": {
+        "type": "Http",
+        "runAfter": {
+          "Build_the_SOAP_request": [
+            "Succeeded"
+          ]
+        },
+        "inputs": {
+          "method": "POST",
+          "uri": "@appsetting('CRM_URL')",
+          "headers": {
+            "Content-Type": "text/xml; charset=utf-8",
+            "SOAPAction": "\"urn:example:legacy-crm:2009/UpdateCustomer\""
+          },
+          "body": "@body('Build_the_SOAP_request')?['result']",
+          "authentication": {
+            "type": "Basic",
+            "username": "@appsetting('CRM_USERNAME')",
+            "password": "@appsetting('CRM_PASSWORD')"
+          },
+          "retryPolicy": {
+            "type": "none"
+          }
+        }
+      },
+      "Read_the_SOAP_response": {
+        "type": "ServiceProvider",
+        "runAfter": {
+          "Call_the_CRM": [
+            "Succeeded",
+            "Failed"
+          ]
+        },
+        "inputs": {
+          "parameters": {
+            "inputFormat": "xml",
+            "outputFormat": "json",
+            "content": "@{body('Call_the_CRM')}",
+            "templateSource": "deployed",
+            "templateName": "soap-response-to-json.liquid",
+            "xmlNamespaces": {
+              "soap": "http://schemas.xmlsoap.org/soap/envelope/",
+              "crm": "urn:example:legacy-crm:2009"
+            },
+            "enableScripts": true,
+            "timeoutSeconds": 30
+          },
+          "serviceProviderConfiguration": {
+            "connectionName": "lamboLiquidCompose",
+            "operationId": "ComposeLiquid",
+            "serviceProviderId": "/serviceProviders/lamboLiquidCompose"
+          },
+          "retryPolicy": {
+            "type": "none"
+          }
+        }
+      },
+      "Respond": {
+        "type": "Response",
+        "kind": "Http",
+        "runAfter": {
+          "Read_the_SOAP_response": [
+            "Succeeded"
+          ]
+        },
+        "inputs": {
+          "statusCode": "@if(body('Read_the_SOAP_response')?['result']?['ok'], 200, if(body('Read_the_SOAP_response')?['result']?['sender'], 422, 502))",
+          "body": "@body('Read_the_SOAP_response')?['result']"
+        }
+      },
+      "Request_not_built": {
+        "type": "Response",
+        "kind": "Http",
+        "runAfter": {
+          "Build_the_SOAP_request": [
+            "Failed",
+            "TimedOut"
+          ]
+        },
+        "inputs": {
+          "statusCode": 422,
+          "body": {
+            "error": "The SOAP request could not be built. Nothing was sent to the CRM.",
+            "code": "@first(split(last(split(string(outputs('Build_the_SOAP_request')?['body']?['message']), 'error message ''')), ':'))",
+            "message": "@outputs('Build_the_SOAP_request')?['body']?['message']"
+          }
+        }
+      },
+      "No_SOAP_response": {
+        "type": "Response",
+        "kind": "Http",
+        "runAfter": {
+          "Read_the_SOAP_response": [
+            "Failed",
+            "TimedOut"
+          ]
+        },
+        "inputs": {
+          "statusCode": 502,
+          "body": {
+            "error": "The CRM did not answer with a SOAP message.",
+            "crmStatus": "@outputs('Call_the_CRM')?['statusCode']"
+          }
+        }
+      }
+    },
+    "outputs": {}
+  },
+  "kind": "Stateful"
+}

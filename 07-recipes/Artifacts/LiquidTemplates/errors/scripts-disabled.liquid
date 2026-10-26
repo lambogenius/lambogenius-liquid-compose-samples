@@ -1,0 +1,5 @@
+{% csharp %}
+public string Code(string value) => (value ?? "").Trim().ToUpperInvariant();
+{% endcsharp %}
+{%- comment -%} The workflow does not set enableScripts, so the C# block is refused before anything runs. {%- endcomment -%}
+{ "order": {{ content.orderId | CallCSharp: 'Code' | ToJson }} }

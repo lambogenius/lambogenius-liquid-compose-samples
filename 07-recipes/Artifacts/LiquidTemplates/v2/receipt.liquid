@@ -1,0 +1,5 @@
+{
+  "version": 2,
+  "receipt": { "id": {{ content.orderId | ToJson }}, "issuedTo": {{ content.billTo.name | ToJson }} },
+  "amount": { "value": {{ content.total | ToJson }}, "currency": {{ content.currency | Default: 'CAD' | ToJson }} }
+}

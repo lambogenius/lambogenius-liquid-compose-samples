@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"
+         xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2"
+         xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2">
+  <cbc:UBLVersionID>2.1</cbc:UBLVersionID>
+  <cbc:ID>INV-88125</cbc:ID>
+  <cbc:IssueDate>2026-10-01</cbc:IssueDate>
+  <cbc:DueDate>2026-10-31</cbc:DueDate>
+  <cbc:InvoiceTypeCode>380</cbc:InvoiceTypeCode>
+  <cbc:Note>Thank you &amp; see you soon</cbc:Note>
+  <cbc:DocumentCurrencyCode>CAD</cbc:DocumentCurrencyCode>
+  <cac:AccountingSupplierParty>
+    <cac:Party>
+      <cac:PartyName><cbc:Name>Northwind Industrial Ltd.</cbc:Name></cac:PartyName>
+      <cac:PartyTaxScheme>
+        <cbc:CompanyID>123456789RT0001</cbc:CompanyID>
+        <cac:TaxScheme><cbc:ID>GST</cbc:ID></cac:TaxScheme>
+      </cac:PartyTaxScheme>
+      <cac:Contact><cbc:ElectronicMail>Billing@Northwind.example</cbc:ElectronicMail></cac:Contact>
+    </cac:Party>
+  </cac:AccountingSupplierParty>
+  <cac:AccountingCustomerParty>
+    <cac:Party>
+      <cac:PartyName><cbc:Name>Lambogenius Demo Inc.</cbc:Name></cac:PartyName>
+    </cac:Party>
+  </cac:AccountingCustomerParty>
+  <cac:TaxTotal>
+    <cbc:TaxAmount currencyID="CAD">172.25</cbc:TaxAmount>
+  </cac:TaxTotal>
+  <cac:LegalMonetaryTotal>
+    <cbc:LineExtensionAmount currencyID="CAD">1325.00</cbc:LineExtensionAmount>
+    <cbc:TaxExclusiveAmount currencyID="CAD">1325.00</cbc:TaxExclusiveAmount>
+    <cbc:TaxInclusiveAmount currencyID="CAD">1497.25</cbc:TaxInclusiveAmount>
+    <cbc:PayableAmount currencyID="CAD">1497.25</cbc:PayableAmount>
+  </cac:LegalMonetaryTotal>
+  <cac:InvoiceLine>
+    <cbc:ID>1</cbc:ID>
+    <cbc:InvoicedQuantity unitCode="EA">10</cbc:InvoicedQuantity>
+    <cbc:LineExtensionAmount currencyID="CAD">1200.00</cbc:LineExtensionAmount>
+    <cac:Item>
+      <cbc:Name>Hydraulic pump, 2 hp</cbc:Name>
+      <cac:SellersItemIdentification><cbc:ID>NW-PMP-200</cbc:ID></cac:SellersItemIdentification>
+    </cac:Item>
+    <cac:Price><cbc:PriceAmount currencyID="CAD">120.00</cbc:PriceAmount></cac:Price>
+  </cac:InvoiceLine>
+  <cac:InvoiceLine>
+    <cbc:ID>2</cbc:ID>
+    <cbc:InvoicedQuantity unitCode="HUR">2.5</cbc:InvoicedQuantity>
+    <cbc:LineExtensionAmount currencyID="CAD">125.00</cbc:LineExtensionAmount>
+    <cac:Item>
+      <cbc:Name>Installation &lt;on site&gt;</cbc:Name>
+      <cac:SellersItemIdentification><cbc:ID>NW-SVC-INST</cbc:ID></cac:SellersItemIdentification>
+    </cac:Item>
+    <cac:Price><cbc:PriceAmount currencyID="CAD">50.00</cbc:PriceAmount></cac:Price>
+  </cac:InvoiceLine>
+</Invoice>

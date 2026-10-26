@@ -1,0 +1,71 @@
+{% csharp %}
+public string Code(string value)
+{
+    return (value ?? "").Trim().ToUpperInvariant();
+}
+
+// The webshop sends money as strings ("9.99"); the ERP wants numbers.
+public double Money(string value)
+{
+    return Math.Round(double.Parse(value, NumberStyles.Number, CultureInfo.InvariantCulture), 2);
+}
+
+// The order's local calendar date, not converted to UTC.
+public string OrderDate(string value)
+{
+    return DateTimeOffset.Parse(value, CultureInfo.InvariantCulture).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+}
+
+// Canadian postal codes as the ERP stores them: "m5x1a9" -> "M5X 1A9".
+public string PostalCode(string value)
+{
+    var compact = Regex.Replace(value ?? "", @"\s", "").ToUpperInvariant();
+    return compact.Length == 6 ? compact.Substring(0, 3) + " " + compact.Substring(3) : compact;
+}
+
+public string TaxCode(string province)
+{
+    switch ((province ?? "").Trim().ToUpperInvariant())
+    {
+        case "ON": return "HST13";
+        case "NB": case "NL": case "NS": case "PE": return "HST15";
+        case "QC": return "GST-QST";
+        case "BC": case "MB": case "SK": return "GST-PST";
+        default: return "GST5";
+    }
+}
+{% endcsharp %}
+{%- assign address = content.shipping_address -%}
+{%- assign shipping = content.shipping_lines | First -%}
+{
+  "externalOrderId": {{ content.name | Remove: '#' | Prepend: 'WEB-' | ToJson }},
+  "channel": "webshop",
+  "orderDate": {{ content.created_at | CallCSharp: 'OrderDate' | ToJson }},
+  "customer": {
+    "account": {{ content.customer.id | CallCSharp: 'Code' | ToJson }},
+    "name": {{ content.customer.id | CallCSharp: 'Code' | CallFunction: 'GetCustomerName' | ToJson }},
+    "email": {{ content.customer.email | Downcase | ToJson }}
+  },
+  "shipTo": {
+    "name": {{ address.name | ToJson }},
+    "street": {{ address.address1 | ToJson }},
+    "city": {{ address.city | ToJson }},
+    "region": {{ address.province_code | Upcase | ToJson }},
+    "postalCode": {{ address.zip | CallCSharp: 'PostalCode' | ToJson }},
+    "country": {{ address.country_code | Upcase | ToJson }}
+  },
+  "taxCode": {{ address.province_code | CallCSharp: 'TaxCode' | ToJson }},
+  "currency": {{ content.currency | Default: parameters.defaultCurrency | ToJson }},
+  "lines": [
+    {%- for line in content.line_items -%}
+    {
+      "lineNo": {{ forloop.index | Times: 10 | ToJson }},
+      "item": {{ line.sku | CallCSharp: 'Code' | ToJson }},
+      "description": {{ line.title | ToJson }},
+      "quantity": {{ line.quantity | ToJson }},
+      "unitPrice": {{ line.price | CallCSharp: 'Money' | ToJson }}
+    }{% unless forloop.last %},{% endunless %}
+    {%- endfor %}
+  ],
+  "freight": {{ shipping.price | Default: '0' | CallCSharp: 'Money' | ToJson }}
+}

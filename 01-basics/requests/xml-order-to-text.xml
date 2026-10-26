@@ -1,0 +1,7 @@
+<Order xmlns="urn:orders">
+  <Number>ord-100</Number>
+  <Lines>
+    <Line><Sku>abc-01</Sku></Line>
+    <Line><Sku>xyz-02</Sku></Line>
+  </Lines>
+</Order>
