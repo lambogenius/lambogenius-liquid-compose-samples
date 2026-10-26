@@ -1,0 +1,12 @@
+{
+  "number": "SO-2026-0815",
+  "customer": "Northwind Traders",
+  "lines": [
+    { "sku": "KB-100", "description": "Keyboard", "quantity": 4, "unitPrice": 49.99 },
+    { "sku": "MS-200", "description": "Mouse", "quantity": 4, "unitPrice": 24.50 },
+    { "sku": "GIFT-WRAP", "description": "Gift wrap", "quantity": 1, "unitPrice": 5.00 },
+    { "sku": "MN-270", "description": "27-inch monitor", "quantity": 2, "unitPrice": 329.00 },
+    { "sku": "CB-USB", "description": "USB-C cable", "quantity": 6, "unitPrice": 12.75 }
+  ],
+  "shipTo": { "city": "Halifax", "province": "NS" }
+}

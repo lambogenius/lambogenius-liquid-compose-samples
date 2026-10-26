@@ -1,0 +1,4 @@
+Order {{ content.number }} for {{ content.customer }}
+{% for line in content.lines -%}
+  {{ line.quantity }} x {{ line.description }} ({{ line.sku }})
+{% endfor -%}

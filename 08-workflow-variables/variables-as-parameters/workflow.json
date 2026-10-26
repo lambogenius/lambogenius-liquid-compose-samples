@@ -1,0 +1,177 @@
+{
+  "definition": {
+    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+    "contentVersion": "1.0.0.0",
+    "triggers": {
+      "When_an_HTTP_request_is_received": {
+        "type": "Request",
+        "kind": "Http",
+        "inputs": {}
+      }
+    },
+    "actions": {
+      "Initialize_the_quote_settings": {
+        "type": "InitializeVariable",
+        "runAfter": {},
+        "inputs": {
+          "variables": [
+            {
+              "name": "currency",
+              "type": "string",
+              "value": "@{toUpper(coalesce(triggerOutputs()?['queries']?['currency'], 'CAD'))}"
+            },
+            {
+              "name": "maxLines",
+              "type": "integer",
+              "value": "@int(coalesce(triggerOutputs()?['queries']?['maxLines'], '10'))"
+            },
+            {
+              "name": "taxRate",
+              "type": "float",
+              "value": "@float(coalesce(triggerOutputs()?['queries']?['taxRate'], '0.15'))"
+            },
+            {
+              "name": "expedite",
+              "type": "boolean",
+              "value": "@equals(toLower(coalesce(triggerOutputs()?['headers']?['x-expedite'], 'false')), 'true')"
+            },
+            {
+              "name": "excludedSkus",
+              "type": "array",
+              "value": "@if(empty(coalesce(triggerOutputs()?['queries']?['exclude'], '')), json('[]'), split(triggerOutputs()?['queries']?['exclude'], ','))"
+            },
+            {
+              "name": "shipTo",
+              "type": "object",
+              "value": "@triggerBody()?['shipTo']"
+            }
+          ]
+        }
+      },
+      "Initialize_the_results": {
+        "type": "InitializeVariable",
+        "runAfter": {
+          "Initialize_the_quote_settings": [
+            "Succeeded"
+          ]
+        },
+        "inputs": {
+          "variables": [
+            {
+              "name": "total",
+              "type": "float",
+              "value": 0
+            },
+            {
+              "name": "lineCount",
+              "type": "integer",
+              "value": 0
+            }
+          ]
+        }
+      },
+      "Quote_the_order": {
+        "type": "ServiceProvider",
+        "runAfter": {
+          "Initialize_the_results": [
+            "Succeeded"
+          ]
+        },
+        "inputs": {
+          "parameters": {
+            "inputFormat": "json",
+            "outputFormat": "json",
+            "content": "@triggerBody()",
+            "templateSource": "deployed",
+            "templateName": "quote.liquid",
+            "parameters": {
+              "currency": "@variables('currency')",
+              "maxLines": "@variables('maxLines')",
+              "taxRate": "@variables('taxRate')",
+              "expedite": "@variables('expedite')",
+              "excludedSkus": "@variables('excludedSkus')",
+              "shipTo": "@variables('shipTo')"
+            },
+            "timeoutSeconds": 30
+          },
+          "serviceProviderConfiguration": {
+            "connectionName": "lamboLiquidCompose",
+            "operationId": "ComposeLiquid",
+            "serviceProviderId": "/serviceProviders/lamboLiquidCompose"
+          },
+          "retryPolicy": {
+            "type": "none"
+          }
+        }
+      },
+      "Set_total": {
+        "type": "SetVariable",
+        "runAfter": {
+          "Quote_the_order": [
+            "Succeeded"
+          ]
+        },
+        "inputs": {
+          "name": "total",
+          "value": "@body('Quote_the_order')?['result']?['total']"
+        }
+      },
+      "Set_lineCount": {
+        "type": "SetVariable",
+        "runAfter": {
+          "Set_total": [
+            "Succeeded"
+          ]
+        },
+        "inputs": {
+          "name": "lineCount",
+          "value": "@body('Quote_the_order')?['result']?['lineCount']"
+        }
+      },
+      "Response": {
+        "type": "Response",
+        "kind": "Http",
+        "runAfter": {
+          "Set_lineCount": [
+            "Succeeded"
+          ]
+        },
+        "inputs": {
+          "statusCode": 200,
+          "body": {
+            "quote": "@body('Quote_the_order')?['result']",
+            "variables": {
+              "currency": "@variables('currency')",
+              "maxLines": "@variables('maxLines')",
+              "taxRate": "@variables('taxRate')",
+              "expedite": "@variables('expedite')",
+              "excludedSkus": "@variables('excludedSkus')",
+              "total": "@variables('total')",
+              "lineCount": "@variables('lineCount')"
+            }
+          }
+        }
+      },
+      "Not_quoted": {
+        "type": "Response",
+        "kind": "Http",
+        "runAfter": {
+          "Quote_the_order": [
+            "Failed",
+            "TimedOut"
+          ]
+        },
+        "inputs": {
+          "statusCode": 422,
+          "body": {
+            "error": "The order could not be quoted.",
+            "code": "@first(split(last(split(string(outputs('Quote_the_order')?['body']?['message']), 'error message ''')), ':'))",
+            "message": "@outputs('Quote_the_order')?['body']?['message']"
+          }
+        }
+      }
+    },
+    "outputs": {}
+  },
+  "kind": "Stateful"
+}

@@ -1,0 +1,9 @@
+{% comment %} One order of the batch, called once per loop iteration. parameters.position comes from an integer variable. {% endcomment %}
+{% assign total = 0 %}{% for line in content.lines %}{% assign amount = line.quantity | Times: line.unitPrice %}{% assign total = total | Plus: amount %}{% endfor %}
+{
+  "position": {{ parameters.position | ToJson }},
+  "orderNumber": {{ content.number | ToJson }},
+  "customer": {{ content.customer | ToJson }},
+  "lineCount": {{ content.lines | Size | ToJson }},
+  "total": {{ total | Round: 2 | ToJson }}
+}

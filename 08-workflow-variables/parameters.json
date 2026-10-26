@@ -1,0 +1,9 @@
+{
+  "approval": {
+    "type": "Object",
+    "value": {
+      "reviewLimit": 5000,
+      "blockedCategories": [ "gifts", "alcohol" ]
+    }
+  }
+}

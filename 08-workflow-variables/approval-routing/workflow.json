@@ -1,0 +1,195 @@
+{
+  "definition": {
+    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+    "contentVersion": "1.0.0.0",
+    "triggers": {
+      "When_an_HTTP_request_is_received": {
+        "type": "Request",
+        "kind": "Http",
+        "inputs": {}
+      }
+    },
+    "actions": {
+      "Initialize_the_rules": {
+        "type": "InitializeVariable",
+        "runAfter": {},
+        "inputs": {
+          "variables": [
+            {
+              "name": "autoApproveLimit",
+              "type": "integer",
+              "value": "@int(appsetting('AUTO_APPROVE_LIMIT'))"
+            },
+            {
+              "name": "reviewLimit",
+              "type": "integer",
+              "value": "@parameters('approval')?['reviewLimit']"
+            },
+            {
+              "name": "blockedCategories",
+              "type": "array",
+              "value": "@parameters('approval')?['blockedCategories']"
+            },
+            {
+              "name": "route",
+              "type": "string",
+              "value": ""
+            }
+          ]
+        }
+      },
+      "Decide": {
+        "type": "ServiceProvider",
+        "runAfter": {
+          "Initialize_the_rules": [
+            "Succeeded"
+          ]
+        },
+        "inputs": {
+          "parameters": {
+            "inputFormat": "json",
+            "outputFormat": "text",
+            "content": "@triggerBody()",
+            "templateSource": "deployed",
+            "templateName": "expense-decision.liquid",
+            "parameters": {
+              "autoApproveLimit": "@variables('autoApproveLimit')",
+              "reviewLimit": "@variables('reviewLimit')",
+              "blockedCategories": "@variables('blockedCategories')"
+            },
+            "timeoutSeconds": 30
+          },
+          "serviceProviderConfiguration": {
+            "connectionName": "lamboLiquidCompose",
+            "operationId": "ComposeLiquid",
+            "serviceProviderId": "/serviceProviders/lamboLiquidCompose"
+          },
+          "retryPolicy": {
+            "type": "none"
+          }
+        }
+      },
+      "Initialize_decision": {
+        "type": "InitializeVariable",
+        "runAfter": {
+          "Decide": [
+            "Succeeded"
+          ]
+        },
+        "inputs": {
+          "variables": [
+            {
+              "name": "decision",
+              "type": "string",
+              "value": "@{trim(body('Decide')?['result'])}"
+            }
+          ]
+        }
+      },
+      "Route": {
+        "type": "Switch",
+        "expression": "@variables('decision')",
+        "runAfter": {
+          "Initialize_decision": [
+            "Succeeded"
+          ]
+        },
+        "cases": {
+          "Auto": {
+            "case": "auto",
+            "actions": {
+              "Pay": {
+                "type": "SetVariable",
+                "runAfter": {},
+                "inputs": {
+                  "name": "route",
+                  "value": "payments"
+                }
+              }
+            }
+          },
+          "Review": {
+            "case": "review",
+            "actions": {
+              "Ask_a_manager": {
+                "type": "SetVariable",
+                "runAfter": {},
+                "inputs": {
+                  "name": "route",
+                  "value": "manager-review"
+                }
+              }
+            }
+          },
+          "Reject": {
+            "case": "reject",
+            "actions": {
+              "Return_it": {
+                "type": "SetVariable",
+                "runAfter": {},
+                "inputs": {
+                  "name": "route",
+                  "value": "returned-to-employee"
+                }
+              }
+            }
+          }
+        },
+        "default": {
+          "actions": {
+            "Unexpected": {
+              "type": "SetVariable",
+              "runAfter": {},
+              "inputs": {
+                "name": "route",
+                "value": "@{concat('unexpected decision: ', variables('decision'))}"
+              }
+            }
+          }
+        }
+      },
+      "Response": {
+        "type": "Response",
+        "kind": "Http",
+        "runAfter": {
+          "Route": [
+            "Succeeded"
+          ]
+        },
+        "inputs": {
+          "statusCode": 200,
+          "body": {
+            "id": "@triggerBody()?['id']",
+            "decision": "@variables('decision')",
+            "route": "@variables('route')",
+            "rules": {
+              "autoApproveLimit": "@variables('autoApproveLimit')",
+              "reviewLimit": "@variables('reviewLimit')",
+              "blockedCategories": "@variables('blockedCategories')"
+            }
+          }
+        }
+      },
+      "Not_decided": {
+        "type": "Response",
+        "kind": "Http",
+        "runAfter": {
+          "Decide": [
+            "Failed",
+            "TimedOut"
+          ]
+        },
+        "inputs": {
+          "statusCode": 422,
+          "body": {
+            "error": "The expense could not be decided.",
+            "code": "@first(split(last(split(string(outputs('Decide')?['body']?['message']), 'error message ''')), ':'))",
+            "message": "@outputs('Decide')?['body']?['message']"
+          }
+        }
+      }
+    },
+    "outputs": {}
+  },
+  "kind": "Stateful"
+}

@@ -1,0 +1,237 @@
+{
+  "definition": {
+    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+    "contentVersion": "1.0.0.0",
+    "triggers": {
+      "When_an_HTTP_request_is_received": {
+        "type": "Request",
+        "kind": "Http",
+        "inputs": {}
+      }
+    },
+    "actions": {
+      "Initialize_the_batch": {
+        "type": "InitializeVariable",
+        "runAfter": {},
+        "inputs": {
+          "variables": [
+            {
+              "name": "summaries",
+              "type": "array",
+              "value": "@json('[]')"
+            },
+            {
+              "name": "skipped",
+              "type": "array",
+              "value": "@json('[]')"
+            },
+            {
+              "name": "orderCount",
+              "type": "integer",
+              "value": 0
+            },
+            {
+              "name": "batchTotal",
+              "type": "float",
+              "value": 0
+            }
+          ]
+        }
+      },
+      "For_each_order": {
+        "type": "Foreach",
+        "foreach": "@triggerBody()?['orders']",
+        "runAfter": {
+          "Initialize_the_batch": [
+            "Succeeded"
+          ]
+        },
+        "runtimeConfiguration": {
+          "concurrency": {
+            "repetitions": 1
+          }
+        },
+        "actions": {
+          "Cancelled": {
+            "type": "If",
+            "runAfter": {},
+            "expression": {
+              "and": [
+                {
+                  "equals": [
+                    "@items('For_each_order')?['status']",
+                    "cancelled"
+                  ]
+                }
+              ]
+            },
+            "actions": {
+              "Append_to_skipped": {
+                "type": "AppendToArrayVariable",
+                "runAfter": {},
+                "inputs": {
+                  "name": "skipped",
+                  "value": "@items('For_each_order')?['number']"
+                }
+              }
+            },
+            "else": {
+              "actions": {
+                "Summarize_the_order": {
+                  "type": "ServiceProvider",
+                  "runAfter": {},
+                  "inputs": {
+                    "parameters": {
+                      "inputFormat": "json",
+                      "outputFormat": "json",
+                      "content": "@items('For_each_order')",
+                      "templateSource": "deployed",
+                      "templateName": "order-summary.liquid",
+                      "parameters": {
+                        "position": "@add(variables('orderCount'), 1)"
+                      },
+                      "timeoutSeconds": 30
+                    },
+                    "serviceProviderConfiguration": {
+                      "connectionName": "lamboLiquidCompose",
+                      "operationId": "ComposeLiquid",
+                      "serviceProviderId": "/serviceProviders/lamboLiquidCompose"
+                    },
+                    "retryPolicy": {
+                      "type": "none"
+                    }
+                  }
+                },
+                "Append_to_summaries": {
+                  "type": "AppendToArrayVariable",
+                  "runAfter": {
+                    "Summarize_the_order": [
+                      "Succeeded"
+                    ]
+                  },
+                  "inputs": {
+                    "name": "summaries",
+                    "value": "@body('Summarize_the_order')?['result']"
+                  }
+                },
+                "Increment_orderCount": {
+                  "type": "IncrementVariable",
+                  "runAfter": {
+                    "Append_to_summaries": [
+                      "Succeeded"
+                    ]
+                  },
+                  "inputs": {
+                    "name": "orderCount",
+                    "value": 1
+                  }
+                },
+                "Increment_batchTotal": {
+                  "type": "IncrementVariable",
+                  "runAfter": {
+                    "Increment_orderCount": [
+                      "Succeeded"
+                    ]
+                  },
+                  "inputs": {
+                    "name": "batchTotal",
+                    "value": "@body('Summarize_the_order')?['result']?['total']"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "Write_the_report": {
+        "type": "ServiceProvider",
+        "runAfter": {
+          "For_each_order": [
+            "Succeeded"
+          ]
+        },
+        "inputs": {
+          "parameters": {
+            "inputFormat": "json",
+            "outputFormat": "text",
+            "content": "@variables('summaries')",
+            "templateSource": "deployed",
+            "templateName": "batch-report.liquid",
+            "parameters": {
+              "batchId": "@triggerBody()?['batchId']",
+              "orderCount": "@variables('orderCount')",
+              "batchTotal": "@variables('batchTotal')",
+              "skipped": "@variables('skipped')",
+              "currency": "@appsetting('DEFAULT_CURRENCY')"
+            },
+            "timeoutSeconds": 30
+          },
+          "serviceProviderConfiguration": {
+            "connectionName": "lamboLiquidCompose",
+            "operationId": "ComposeLiquid",
+            "serviceProviderId": "/serviceProviders/lamboLiquidCompose"
+          },
+          "retryPolicy": {
+            "type": "none"
+          }
+        }
+      },
+      "Response": {
+        "type": "Response",
+        "kind": "Http",
+        "runAfter": {
+          "Write_the_report": [
+            "Succeeded"
+          ]
+        },
+        "inputs": {
+          "statusCode": 200,
+          "headers": {
+            "Content-Type": "text/plain; charset=utf-8",
+            "x-order-count": "@{variables('orderCount')}",
+            "x-batch-total": "@{formatNumber(variables('batchTotal'), '0.00', 'en-US')}",
+            "x-skipped": "@{join(variables('skipped'), ',')}"
+          },
+          "body": "@body('Write_the_report')?['result']"
+        }
+      },
+      "Not_summarized": {
+        "type": "Response",
+        "kind": "Http",
+        "runAfter": {
+          "For_each_order": [
+            "Failed",
+            "TimedOut"
+          ]
+        },
+        "inputs": {
+          "statusCode": 422,
+          "body": {
+            "error": "The batch could not be summarized.",
+            "summarized": "@variables('orderCount')"
+          }
+        }
+      },
+      "Report_not_written": {
+        "type": "Response",
+        "kind": "Http",
+        "runAfter": {
+          "Write_the_report": [
+            "Failed",
+            "TimedOut"
+          ]
+        },
+        "inputs": {
+          "statusCode": 422,
+          "body": {
+            "error": "The report could not be written.",
+            "code": "@first(split(last(split(string(outputs('Write_the_report')?['body']?['message']), 'error message ''')), ':'))",
+            "message": "@outputs('Write_the_report')?['body']?['message']"
+          }
+        }
+      }
+    },
+    "outputs": {}
+  },
+  "kind": "Stateful"
+}

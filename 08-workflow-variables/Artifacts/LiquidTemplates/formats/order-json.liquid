@@ -1,0 +1,8 @@
+{
+  "orderNumber": {{ content.number | ToJson }},
+  "customer": {{ content.customer | ToJson }},
+  "lines": [
+    {% for line in content.lines %}{ "sku": {{ line.sku | ToJson }}, "quantity": {{ line.quantity | ToJson }} }{% unless forloop.last %},{% endunless %}
+    {% endfor %}
+  ]
+}

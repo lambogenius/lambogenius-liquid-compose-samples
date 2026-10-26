@@ -1,0 +1,6 @@
+Batch {{ parameters.batchId }}: {{ parameters.orderCount }} orders, {{ parameters.batchTotal | Round: 2 }} {{ parameters.currency }}
+{% for s in content -%}
+{{ s.position }}. {{ s.orderNumber }}  {{ s.customer }}  {{ s.lineCount }} line(s)  {{ s.total }}
+{% endfor -%}
+{% if parameters.skipped.size > 0 %}Skipped (cancelled): {{ parameters.skipped | Join: ', ' }}
+{% endif -%}

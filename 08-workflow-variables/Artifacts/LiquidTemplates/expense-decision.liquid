@@ -1,0 +1,1 @@
+{% assign blocked = parameters.blockedCategories | Join: '|' | Prepend: '|' | Append: '|' %}{% assign key = content.category | Prepend: '|' | Append: '|' %}{% if blocked contains key %}reject{% elsif content.amount <= parameters.autoApproveLimit and content.receipt %}auto{% elsif content.amount <= parameters.reviewLimit %}review{% else %}reject{% endif %}

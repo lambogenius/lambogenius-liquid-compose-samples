@@ -1,0 +1,29 @@
+{% comment %}
+  An order quote. Every value in parameters comes from a workflow variable and keeps its type:
+  currency (string), maxLines (integer), taxRate (float), expedite (boolean), excludedSkus (array), shipTo (object).
+
+  "contains" compares strings only: it does not find an item in an array that came from JSON. So the
+  excluded SKUs are joined into one string, "|GIFT-WRAP|SAMPLE|", and each line looks for "|<sku>|" in it.
+{% endcomment %}
+{% assign excluded = parameters.excludedSkus | Join: '|' | Prepend: '|' | Append: '|' %}
+{% assign subtotal = 0 %}{% assign quoted = 0 %}{% assign separator = '' %}
+{
+  "orderNumber": {{ content.number | ToJson }},
+  "currency": {{ parameters.currency | ToJson }},
+  "shipTo": {{ parameters.shipTo.city | Append: ', ' | Append: parameters.shipTo.province | ToJson }},
+  "lines": [
+    {% for line in content.lines limit: parameters.maxLines %}{% assign key = line.sku | Prepend: '|' | Append: '|' %}{% unless excluded contains key %}
+    {% assign amount = line.quantity | Times: line.unitPrice %}{% assign subtotal = subtotal | Plus: amount %}{% assign quoted = quoted | Plus: 1 %}
+    {{ separator }}{ "sku": {{ line.sku | ToJson }}, "quantity": {{ line.quantity | ToJson }}, "amount": {{ amount | Round: 2 | ToJson }} }
+    {% assign separator = ',' %}{% endunless %}{% endfor %}
+  ],
+  {% assign tax = subtotal | Times: parameters.taxRate | Round: 2 %}
+  {% if parameters.expedite %}{% assign shipping = 25 %}{% else %}{% assign shipping = 0 %}{% endif %}
+  "lineCount": {{ quoted | ToJson }},
+  "linesInOrder": {{ content.lines | Size | ToJson }},
+  "subtotal": {{ subtotal | Round: 2 | ToJson }},
+  "tax": {{ tax | ToJson }},
+  "shipping": {{ shipping | ToJson }},
+  "total": {{ subtotal | Plus: tax | Plus: shipping | Round: 2 | ToJson }},
+  "expedite": {{ parameters.expedite | ToJson }}
+}

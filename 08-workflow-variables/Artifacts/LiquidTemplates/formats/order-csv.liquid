@@ -1,0 +1,4 @@
+order,sku,quantity,unitPrice
+{% for line in content.lines -%}
+{{ content.number }},{{ line.sku }},{{ line.quantity }},{{ line.unitPrice }}
+{% endfor -%}

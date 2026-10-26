@@ -1,0 +1,118 @@
+{
+  "definition": {
+    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+    "contentVersion": "1.0.0.0",
+    "triggers": {
+      "When_an_HTTP_request_is_received": {
+        "type": "Request",
+        "kind": "Http",
+        "inputs": {}
+      }
+    },
+    "actions": {
+      "Initialize_the_format": {
+        "type": "InitializeVariable",
+        "runAfter": {},
+        "inputs": {
+          "variables": [
+            {
+              "name": "format",
+              "type": "string",
+              "value": "@{toLower(coalesce(triggerOutputs()?['queries']?['format'], 'json'))}"
+            }
+          ]
+        }
+      },
+      "Initialize_the_template": {
+        "type": "InitializeVariable",
+        "runAfter": {
+          "Initialize_the_format": [
+            "Succeeded"
+          ]
+        },
+        "inputs": {
+          "variables": [
+            {
+              "name": "templateName",
+              "type": "string",
+              "value": "@{concat('formats/order-', variables('format'), '.liquid')}"
+            },
+            {
+              "name": "outputFormat",
+              "type": "string",
+              "value": "@{if(equals(variables('format'), 'json'), 'json', 'text')}"
+            },
+            {
+              "name": "mediaType",
+              "type": "string",
+              "value": "@{if(equals(variables('format'), 'csv'), 'text/csv; charset=utf-8', if(equals(variables('format'), 'json'), 'application/json; charset=utf-8', 'text/plain; charset=utf-8'))}"
+            }
+          ]
+        }
+      },
+      "Render_the_order": {
+        "type": "ServiceProvider",
+        "runAfter": {
+          "Initialize_the_template": [
+            "Succeeded"
+          ]
+        },
+        "inputs": {
+          "parameters": {
+            "inputFormat": "json",
+            "outputFormat": "@variables('outputFormat')",
+            "content": "@triggerBody()",
+            "templateSource": "deployed",
+            "templateName": "@variables('templateName')",
+            "timeoutSeconds": 30
+          },
+          "serviceProviderConfiguration": {
+            "connectionName": "lamboLiquidCompose",
+            "operationId": "ComposeLiquid",
+            "serviceProviderId": "/serviceProviders/lamboLiquidCompose"
+          },
+          "retryPolicy": {
+            "type": "none"
+          }
+        }
+      },
+      "Response": {
+        "type": "Response",
+        "kind": "Http",
+        "runAfter": {
+          "Render_the_order": [
+            "Succeeded"
+          ]
+        },
+        "inputs": {
+          "statusCode": 200,
+          "headers": {
+            "Content-Type": "@variables('mediaType')",
+            "x-template": "@variables('templateName')"
+          },
+          "body": "@body('Render_the_order')?['result']"
+        }
+      },
+      "Not_rendered": {
+        "type": "Response",
+        "kind": "Http",
+        "runAfter": {
+          "Render_the_order": [
+            "Failed",
+            "TimedOut"
+          ]
+        },
+        "inputs": {
+          "statusCode": 400,
+          "body": {
+            "error": "The order could not be rendered in this format. Use json, csv or text.",
+            "code": "@first(split(last(split(string(outputs('Render_the_order')?['body']?['message']), 'error message ''')), ':'))",
+            "message": "@outputs('Render_the_order')?['body']?['message']"
+          }
+        }
+      }
+    },
+    "outputs": {}
+  },
+  "kind": "Stateful"
+}
