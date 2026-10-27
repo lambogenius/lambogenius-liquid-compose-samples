@@ -22,7 +22,7 @@
     the nuget.config at the repository root adds that folder as a package source.
   -->
   <PropertyGroup>
-    <LiquidComposeVersion Condition="'$(LiquidComposeVersion)' == ''">0.1.0</LiquidComposeVersion>
+    <LiquidComposeVersion Condition="'$(LiquidComposeVersion)' == ''">0.1.1</LiquidComposeVersion>
   </PropertyGroup>
 
   <ItemGroup>
