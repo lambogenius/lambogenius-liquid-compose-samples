@@ -32,7 +32,7 @@ Documentation: <https://docs.lambogenius.com/liquid-compose>
    - [PowerShell 7](https://aka.ms/powershell);
    - [Python 3](https://www.python.org/downloads/) for the stand-in systems (samples 02 and 04–06).
 2. **The Compose using Liquid package.** Sign in at <https://lambogenius.com/app/downloads/liquid-compose>, download
-   `Lambogenius.LiquidCompose.LogicApps.0.1.0.nupkg`, and save it in [`packages/`](packages). Every sample's project
+   `Lambogenius.LiquidCompose.LogicApps.0.1.1.nupkg`, and save it in [`packages/`](packages). Every sample's project
    finds it there through the repository's `nuget.config`.
 3. **No license to run the samples.** Under Azure Functions Core Tools (`func start`, which `run.ps1` uses) the action
    runs without one and logs a reminder. Anywhere else, Azure included, it needs a license token: a free
